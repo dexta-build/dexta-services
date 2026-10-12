@@ -183,3 +183,22 @@ export async function deleteSchoolWebsiteTestimonialRecord(
     WHERE "id" = ${id}
   `);
 }
+
+export async function deleteSchoolWebsiteTestimonialsRecord(
+  ids: string[],
+): Promise<void> {
+  if (!ids.length) return;
+  const delegate = getSchoolWebsiteTestimonialDelegate();
+
+  if (delegate?.deleteMany) {
+    await delegate.deleteMany({
+      where: { id: { in: ids } },
+    });
+    return;
+  }
+
+  await prisma.$executeRaw(Prisma.sql`
+    DELETE FROM "SchoolWebsiteTestimonial"
+    WHERE "id" IN (${Prisma.join(ids)})
+  `);
+}

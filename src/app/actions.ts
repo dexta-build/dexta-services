@@ -5,7 +5,16 @@ import { revalidatePath } from "next/cache";
 import { contactFormSchema, ContactFormState } from "@/lib/validators";
 import prisma from "@/lib/prisma";
 import { verifyRecaptcha } from "@/lib/recaptcha";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  rateLimit,
+  RATE_LIMITS,
+  getClientIp,
+  formatRateLimitWaitTime,
+} from "@/lib/rate-limit";
+import {
+  recordSpamAlert,
+  shouldSendNotification,
+} from "@/lib/notification-throttle";
 import {
   CONTACT_PAGE_CONTENT_DEFAULTS,
   parseJsonStringArray,
@@ -133,15 +142,53 @@ export async function submitContactForm(
 ): Promise<ContactFormState> {
   // Rate limit by IP
   const headersList = await headers();
-  const ip =
-    headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headersList.get("x-real-ip") ??
-    "unknown";
+  const ip = getClientIp(headersList);
+
+  // 1. Honeypot check: Bots auto-fill all form fields including hidden traps
+  const honeypot = formData.get("company_title");
+  if (typeof honeypot === "string" && honeypot.trim().length > 0) {
+    recordSpamAlert({
+      formName: "contact",
+      reason: "honeypot",
+      ip,
+      details: { trapValue: honeypot },
+    });
+    return {
+      success: true,
+      message: "Thank you! Your message has been sent successfully.",
+    };
+  }
+
+  // 2. Timing check: Headless bots submit instantaneously (< 1500ms)
+  const formTsRaw = formData.get("_form_ts");
+  if (formTsRaw && typeof formTsRaw === "string") {
+    const elapsed = Date.now() - Number(formTsRaw);
+    if (!Number.isNaN(elapsed) && elapsed > 0 && elapsed < 1500) {
+      recordSpamAlert({
+        formName: "contact",
+        reason: "timing",
+        ip,
+        details: { elapsedMs: elapsed },
+      });
+      return {
+        success: true,
+        message: "Thank you! Your message has been sent successfully.",
+      };
+    }
+  }
 
   const limit = rateLimit(`contact:${ip}`, RATE_LIMITS.contact);
   if (!limit.success) {
+    recordSpamAlert({
+      formName: "contact",
+      reason: "rate_limit",
+      ip,
+      details: { resetMs: limit.resetMs },
+    });
+    const waitTime = formatRateLimitWaitTime(limit.resetMs);
     return {
-      message: "Too many requests. Please try again later.",
+      success: false,
+      message: `Too many submissions from this connection. Please wait ${waitTime} before trying again.`,
     };
   }
 
@@ -153,6 +200,7 @@ export async function submitContactForm(
 
   if (!validatedFields.success) {
     return {
+      success: false,
       message: "Please fix the errors below.",
       errors: validatedFields.error.flatten().fieldErrors,
     };
@@ -160,10 +208,23 @@ export async function submitContactForm(
 
   // Verify reCAPTCHA v3
   const recaptchaToken = formData.get("recaptchaToken") as string;
+  if (
+    process.env.RECAPTCHA_SECRET_KEY &&
+    !recaptchaToken &&
+    process.env.NODE_ENV === "production"
+  ) {
+    return {
+      success: false,
+      message:
+        "Security verification failed (missing token). Please refresh and try again.",
+    };
+  }
+
   if (recaptchaToken) {
     const recaptchaResult = await verifyRecaptcha(recaptchaToken, "contact");
     if (!recaptchaResult.success) {
       return {
+        success: false,
         message: "reCAPTCHA verification failed. Please try again.",
       };
     }
@@ -216,10 +277,16 @@ export async function submitContactForm(
       message: validatedFields.data.message,
     });
 
-    const emailResults = await Promise.allSettled([
-      apiInstance.sendTransacEmail(confirmationEmail),
-      apiInstance.sendTransacEmail(adminEmail),
-    ]);
+    const emailsToSend = [apiInstance.sendTransacEmail(confirmationEmail)];
+    if (shouldSendNotification("contact-admin", 30_000, 10)) {
+      emailsToSend.push(apiInstance.sendTransacEmail(adminEmail));
+    } else {
+      console.warn(
+        "[Contact Notification Throttled] Admin email alert throttled to protect inbox from spam flood.",
+      );
+    }
+
+    const emailResults = await Promise.allSettled(emailsToSend);
 
     for (const result of emailResults) {
       if (result.status === "rejected") {
@@ -228,11 +295,13 @@ export async function submitContactForm(
     }
 
     return {
+      success: true,
       message: "Your message has been sent successfully!",
     };
   } catch (error) {
     console.error(error);
     return {
+      success: false,
       message: "An unexpected error occurred. Please try again later.",
     };
   }

@@ -408,7 +408,7 @@ const formIframeHelpText =
 const fontImportHelpText =
   "Paste a Google Fonts embed URL to change the font for this section. Example: https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap";
 
-export const dextaAcademy4Manifest = {
+export const dextaAcademy4Manifest: SchoolTemplateManifest = {
   templateSlug: "dexta-academy-4",
   templateName: "Dexta Academy 4",
   sourceDir: "src/app/(public)/dexta-academy-4",

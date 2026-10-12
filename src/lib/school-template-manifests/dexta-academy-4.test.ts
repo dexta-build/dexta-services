@@ -232,11 +232,13 @@ describe("Dexta Academy 4 manifest", () => {
       ?.items[0]?.statValue;
 
     assert.equal(typeof sanitizedStatValue, "string");
-    assert.match(sanitizedStatValue, /^<h2><span style="/);
-    assert.match(sanitizedStatValue, /font-family:Montserrat, sans-serif/);
-    assert.match(sanitizedStatValue, /color:#e03e2d/);
-    assert.match(sanitizedStatValue, /font-size:24px/);
-    assert.match(sanitizedStatValue, /<strong>98%<\/strong>/);
+    const statValueString =
+      typeof sanitizedStatValue === "string" ? sanitizedStatValue : "";
+    assert.match(statValueString, /^<h2><span style="/);
+    assert.match(statValueString, /font-family:Montserrat, sans-serif/);
+    assert.match(statValueString, /color:#e03e2d/);
+    assert.match(statValueString, /font-size:24px/);
+    assert.match(statValueString, /<strong>98%<\/strong>/);
   });
 
   it("keeps About Facts section title and card value/label fields targeted correctly", () => {

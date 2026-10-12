@@ -10,8 +10,19 @@ import {
   Plus,
   Trash2,
   Video,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BulkActionsBar } from "@/components/admin/bulk-actions-bar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +54,7 @@ import type { SchoolWebsiteTemplateInput } from "@/lib/validators";
 import {
   createSchoolWebsiteTemplate,
   deleteSchoolWebsiteTemplate,
+  deleteSchoolWebsiteTemplates,
   updateSchoolWebsiteTemplate,
   type SchoolWebsiteTemplateRow,
 } from "../actions";
@@ -116,8 +128,45 @@ export function TemplatesManager({
   const [deleting, setDeleting] = useState<SchoolWebsiteTemplateRow | null>(
     null,
   );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const refresh = () => router.refresh();
+
+  const toggleSelectAll = () => {
+    const allIds = templates.map((t) => t.id);
+    const allSelected = allIds.every((id) => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allIds);
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+
+    setIsBulkDeleting(true);
+    const result = await deleteSchoolWebsiteTemplates(selectedIds);
+    setIsBulkDeleting(false);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(result.message);
+    setSelectedIds([]);
+    setShowBulkDeleteDialog(false);
+    refresh();
+  };
 
   const handleCreate = async (payload: SchoolWebsiteTemplateInput) => {
     const result = await createSchoolWebsiteTemplate(payload);
@@ -177,6 +226,14 @@ export function TemplatesManager({
         </Button>
       </div>
 
+      <BulkActionsBar
+        selectedCount={selectedIds.length}
+        onClearSelection={() => setSelectedIds([])}
+        onDeleteSelected={() => setShowBulkDeleteDialog(true)}
+        isDeleting={isBulkDeleting}
+        itemLabel="templates"
+      />
+
       {templates.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#2a2a2a] bg-[#0a0a0a] px-6 py-12 text-center">
           <p className="text-sm font-medium text-white">
@@ -192,6 +249,16 @@ export function TemplatesManager({
           <Table>
             <TableHeader>
               <TableRow className="border-[#222] bg-[#0d0d0d] hover:bg-[#0d0d0d]">
+                <TableHead className="w-12 px-4">
+                  <Checkbox
+                    checked={
+                      templates.length > 0 &&
+                      templates.every((t) => selectedIds.includes(t.id))
+                    }
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all templates"
+                  />
+                </TableHead>
                 <TableHead className="px-4 text-xs font-semibold tracking-[0.2em] text-[#777] uppercase">
                   Template
                 </TableHead>
@@ -218,6 +285,7 @@ export function TemplatesManager({
             <TableBody>
               {templates.map((template) => {
                 const coverAsset = getCoverAsset(template);
+                const isSelected = selectedIds.includes(template.id);
 
                 return (
                   <TableRow
@@ -230,8 +298,21 @@ export function TemplatesManager({
                         setViewing(template);
                       }
                     }}
-                    className="cursor-pointer border-[#222] bg-[#111] text-[#d5d5d5] hover:bg-[#171717] focus-visible:bg-[#171717] focus-visible:outline-none"
+                    className={cn(
+                      "cursor-pointer border-[#222] bg-[#111] text-[#d5d5d5] hover:bg-[#171717] focus-visible:bg-[#171717] focus-visible:outline-none",
+                      isSelected && "bg-cyan-950/10",
+                    )}
                   >
+                    <TableCell
+                      className="px-4 py-3 align-top"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectOne(template.id)}
+                        aria-label={`Select ${template.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="px-4 py-3 align-top whitespace-normal">
                       <div className="flex min-w-[220px] items-start gap-3">
                         <div className="h-14 w-20 overflow-hidden rounded-xl border border-[#222] bg-[#0b0b0b]">
@@ -300,44 +381,64 @@ export function TemplatesManager({
                         <span className="text-xs text-[#666]">Not set</span>
                       )}
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-right align-top">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setViewing(template);
-                          }}
-                          className="h-9 w-9 border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openEditing(template);
-                          }}
-                          className="h-9 w-9 border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setDeleting(template);
-                          }}
-                          className="h-9 w-9 text-[#666] hover:bg-red-950/30 hover:text-red-400"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                    <TableCell
+                      className="px-4 py-3 text-right align-top"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <div className="flex justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-48 border-[#222] bg-[#111] text-white"
+                          >
+                            <DropdownMenuItem
+                              onClick={() => setViewing(template)}
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => openEditing(template)}
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit template
+                            </DropdownMenuItem>
+                            {template.websiteUrl ? (
+                              <DropdownMenuItem asChild>
+                                <a
+                                  href={template.websiteUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="cursor-pointer hover:bg-[#1a1a1a]"
+                                >
+                                  <ExternalLink className="mr-2 h-4 w-4" />
+                                  Open live URL
+                                </a>
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuSeparator className="bg-[#222]" />
+                            <DropdownMenuItem
+                              onClick={() => setDeleting(template)}
+                              className="cursor-pointer text-red-400 hover:bg-red-950/20 hover:text-red-300"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete template
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -652,6 +753,44 @@ export function TemplatesManager({
               className="bg-red-600 text-white hover:bg-red-500"
             >
               Delete Template
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={(open) => {
+          if (!open && !isBulkDeleting) {
+            setShowBulkDeleteDialog(false);
+          }
+        }}
+      >
+        <AlertDialogContent className="border-[#222] bg-[#111] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">
+              Delete {selectedIds.length} template
+              {selectedIds.length === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#666]">
+              This will permanently delete the selected {selectedIds.length}{" "}
+              template{selectedIds.length === 1 ? "" : "s"} and all associated
+              preview assets. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isBulkDeleting}
+              className="border-[#2a2a2a] bg-transparent text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isBulkDeleting}
+              onClick={handleBulkDelete}
+              className="bg-red-600 text-white hover:bg-red-500"
+            >
+              {isBulkDeleting ? "Deleting..." : "Delete selected"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -990,6 +990,7 @@ function TemplateApplicationDialog({
       preferredDomain2: "",
       status: "PENDING",
       adminNotes: "",
+      hp_school_website: "",
     },
   });
 
@@ -1018,6 +1019,7 @@ function TemplateApplicationDialog({
       preferredDomain2: "",
       status: "PENDING",
       adminNotes: "",
+      hp_school_website: "",
     });
     setStep(1);
     setIsSuccess(false);
@@ -1152,6 +1154,29 @@ function TemplateApplicationDialog({
                   </div>
                 ) : (
                   <form onSubmit={onSubmit} noValidate>
+                    {/* Honeypot & Timing Trap for bot detection */}
+                    <div
+                      className="absolute -left-[9999px] top-0 h-0 w-0 overflow-hidden opacity-0 pointer-events-none select-none"
+                      aria-hidden="true"
+                      tabIndex={-1}
+                    >
+                      <label htmlFor="hp_school_website">
+                        Leave this field blank
+                      </label>
+                      <input
+                        type="text"
+                        id="hp_school_website"
+                        {...form.register("hp_school_website")}
+                        tabIndex={-1}
+                        autoComplete="off"
+                      />
+                      <input
+                        type="hidden"
+                        {...form.register("_form_ts")}
+                        defaultValue={Date.now()}
+                      />
+                    </div>
+
                     <AnimatePresence mode="wait" initial={false}>
                       {step === 1 ? (
                         <motion.div

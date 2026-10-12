@@ -233,6 +233,7 @@ export const composeEmailSchema = z.object({
 export type ComposeEmailData = z.infer<typeof composeEmailSchema>;
 
 export type ContactFormState = {
+  success?: boolean;
   message: string;
   errors?: {
     name?: string[];
@@ -999,6 +1000,8 @@ export const schoolWebsiteApplicationSchema =
     .extend({
       status: schoolWebsiteJobStatusSchema.default("PENDING"),
       adminNotes: optionalTrimmedString("Admin notes", 4000),
+      hp_school_website: z.string().optional(),
+      _form_ts: z.union([z.number(), z.string()]).optional(),
     });
 
 export type SchoolWebsiteApplicationInput = z.infer<

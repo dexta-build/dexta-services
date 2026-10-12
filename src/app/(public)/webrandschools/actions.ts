@@ -5,7 +5,16 @@ import { revalidatePath, updateTag } from "next/cache";
 import prisma from "@/lib/prisma";
 import { buildRegularEmailHtml, sendEmail } from "@/lib/email";
 import { verifyRecaptcha } from "@/lib/recaptcha";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  rateLimit,
+  RATE_LIMITS,
+  getClientIp,
+  formatRateLimitWaitTime,
+} from "@/lib/rate-limit";
+import {
+  recordSpamAlert,
+  shouldSendNotification,
+} from "@/lib/notification-throttle";
 import {
   schoolWebsiteApplicationSchema,
   type SchoolWebsiteApplicationInput,
@@ -164,6 +173,21 @@ async function notifyReferralOwnerApplicationSubmitted({
     return;
   }
 
+  if (!shouldSendNotification(`referral:${referral.id}`, 30_000, 10)) {
+    console.warn(
+      `[Referral Notification Throttled] Suppressed duplicate email to ${referral.email}`,
+    );
+    await logReferralNotification({
+      referralLinkId: referral.id,
+      applicationId,
+      recipientEmail: referral.email,
+      subject,
+      status: "SKIPPED",
+      errorMessage: "Notification rate limit throttled to prevent flooding.",
+    });
+    return;
+  }
+
   try {
     await sendEmail({
       to: {
@@ -310,19 +334,58 @@ export async function submitSchoolWebsiteApplication(
 ): Promise<SchoolWebsiteApplicationActionResult> {
   try {
     const headersList = await headers();
-    const ip =
-      headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      headersList.get("x-real-ip") ??
-      "unknown";
+    const ip = getClientIp(headersList);
+
+    // 1. Honeypot check: Bots auto-fill all form fields including hidden traps
+    const honeypot = data.hp_school_website;
+    if (typeof honeypot === "string" && honeypot.trim().length > 0) {
+      recordSpamAlert({
+        formName: "we-brand-schools",
+        reason: "honeypot",
+        ip,
+        details: { trapValue: honeypot },
+      });
+      return {
+        success: true,
+        message:
+          "Application submitted successfully! Our team will review your application.",
+      };
+    }
+
+    // 2. Timing check: Headless bots submit instantaneously (< 1500ms)
+    const formTsRaw = data._form_ts;
+    if (formTsRaw) {
+      const elapsed = Date.now() - Number(formTsRaw);
+      if (!Number.isNaN(elapsed) && elapsed > 0 && elapsed < 1500) {
+        recordSpamAlert({
+          formName: "we-brand-schools",
+          reason: "timing",
+          ip,
+          details: { elapsedMs: elapsed },
+        });
+        return {
+          success: true,
+          message:
+            "Application submitted successfully! Our team will review your application.",
+        };
+      }
+    }
 
     const limit = rateLimit(
       `school-website-application:${ip}`,
       RATE_LIMITS.form,
     );
     if (!limit.success) {
+      recordSpamAlert({
+        formName: "we-brand-schools",
+        reason: "rate_limit",
+        ip,
+        details: { resetMs: limit.resetMs },
+      });
+      const waitTime = formatRateLimitWaitTime(limit.resetMs);
       return {
         success: false,
-        message: "Too many requests. Please try again later.",
+        message: `Too many submissions. Please wait ${waitTime} before trying again.`,
       };
     }
 
@@ -333,6 +396,11 @@ export async function submitSchoolWebsiteApplication(
       );
 
       if (!recaptchaResult.success) {
+        recordSpamAlert({
+          formName: "we-brand-schools",
+          reason: "recaptcha",
+          ip,
+        });
         return {
           success: false,
           message: "reCAPTCHA verification failed. Please try again.",

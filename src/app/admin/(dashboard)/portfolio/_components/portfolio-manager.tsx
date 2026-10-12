@@ -14,9 +14,19 @@ import {
   Plus,
   Play,
   Image as ImageIcon,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BulkActionsBar } from "@/components/admin/bulk-actions-bar";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +50,7 @@ import {
   createPortfolioItem,
   updatePortfolioItem,
   deletePortfolioItem,
+  deletePortfolioItems,
   toggleFeatured,
   toggleVisibility,
   reorderPortfolioItems,
@@ -140,6 +151,9 @@ export function PortfolioManager({
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   useEffect(() => {
     setItems(initialItems);
@@ -149,6 +163,43 @@ export function PortfolioManager({
   }, [initialCounts]);
 
   const tabItems = items.filter((i) => i.serviceType === activeTab);
+
+  const toggleSelectAll = () => {
+    const currentTabIds = tabItems.map((item) => item.id);
+    const allSelected = currentTabIds.every((id) => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds((prev) =>
+        prev.filter((id) => !currentTabIds.includes(id)),
+      );
+    } else {
+      setSelectedIds((prev) =>
+        Array.from(new Set([...prev, ...currentTabIds])),
+      );
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    setIsBulkDeleting(true);
+    const result = await deletePortfolioItems(selectedIds);
+    setIsBulkDeleting(false);
+
+    if (result.success) {
+      toast.success(result.message);
+      setItems((prev) => prev.filter((i) => !selectedIds.includes(i.id)));
+      setSelectedIds([]);
+      setShowBulkDeleteDialog(false);
+      router.refresh();
+    } else {
+      toast.error(result.message);
+    }
+  };
 
   const handleTabChange = (type: ServiceType) => {
     setActiveTab(type);
@@ -296,6 +347,15 @@ export function PortfolioManager({
         ))}
       </div>
 
+      {/* ── Bulk Actions Bar ─────────────────────────────────────────────────── */}
+      <BulkActionsBar
+        selectedCount={selectedIds.length}
+        onClearSelection={() => setSelectedIds([])}
+        onDeleteSelected={() => setShowBulkDeleteDialog(true)}
+        isDeleting={isBulkDeleting}
+        itemLabel="portfolio items"
+      />
+
       {/* ── Grid ─────────────────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-[#222] bg-[#111]">
         {tabItems.length === 0 ? (
@@ -305,146 +365,176 @@ export function PortfolioManager({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-[#1a1a1a]">
-            {tabItems.map((item, index) => {
-              const thumbSrc = getThumbnailSrc(item);
-              return (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 px-4 py-3 sm:gap-4"
-                >
-                  {/* Thumbnail */}
-                  <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-[#0d0d0d] border border-[#2a2a2a]">
-                    {thumbSrc ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={thumbSrc}
-                        alt={item.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <ImageIcon className="h-4 w-4 text-[#444]" />
-                      </div>
-                    )}
-                    {item.mediaType === "VIDEO" && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <Play className="h-3 w-3 text-white" />
-                      </div>
-                    )}
-                  </div>
+          <div>
+            <div className="flex items-center justify-between border-b border-[#222] bg-[#0d0d0d] px-4 py-2.5">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={
+                    tabItems.length > 0 &&
+                    tabItems.every((item) => selectedIds.includes(item.id))
+                  }
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all items in this tab"
+                />
+                <span className="text-xs font-semibold tracking-[0.16em] text-[#777] uppercase">
+                  Select All ({tabItems.length})
+                </span>
+              </div>
+            </div>
 
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-white">
-                      {item.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] font-mono text-[#555] uppercase">
-                        {item.mediaType}
-                      </span>
-                      {item.isFeatured && (
-                        <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
-                          <Star className="h-2.5 w-2.5 fill-amber-400" />
-                          Featured
-                        </span>
-                      )}
-                      {item.serviceType === "BUILD" && item.websiteUrl ? (
-                        <span className="flex items-center gap-1 text-[10px] text-cyan-400">
-                          <ArrowUpRight className="h-2.5 w-2.5" />
-                          Link added
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {/* Featured star toggle */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleFeatured(item)}
+            <div className="divide-y divide-[#1a1a1a]">
+              {tabItems.map((item, index) => {
+                const thumbSrc = getThumbnailSrc(item);
+                const isSelected = selectedIds.includes(item.id);
+                return (
+                  <div
+                    key={item.id}
                     className={cn(
-                      "rounded p-1.5 transition-colors",
-                      item.isFeatured
-                        ? "text-amber-400 hover:text-amber-300"
-                        : "text-[#444] hover:text-amber-400",
+                      "flex items-center gap-3 px-4 py-3 transition-colors sm:gap-4",
+                      isSelected ? "bg-cyan-950/10" : "hover:bg-[#141414]",
                     )}
-                    aria-label={
-                      item.isFeatured
-                        ? "Remove from featured"
-                        : "Mark as featured"
-                    }
                   >
-                    <Star
-                      className={cn(
-                        "h-4 w-4",
-                        item.isFeatured && "fill-amber-400",
-                      )}
+                    {/* Selection Checkbox */}
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleSelectOne(item.id)}
+                      aria-label={`Select ${item.title}`}
                     />
-                  </button>
 
-                  {/* Visibility toggle */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleVisibility(item)}
-                    className={cn(
-                      "rounded p-1.5 transition-colors",
-                      item.isVisible
-                        ? "text-cyan-500/60 hover:text-cyan-400"
-                        : "text-[#444] hover:text-white",
-                    )}
-                    aria-label={item.isVisible ? "Hide" : "Show"}
-                  >
-                    {item.isVisible ? (
-                      <Eye className="h-4 w-4" />
-                    ) : (
-                      <EyeOff className="h-4 w-4" />
-                    )}
-                  </button>
+                    {/* Thumbnail */}
+                    <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-[#0d0d0d] border border-[#2a2a2a]">
+                      {thumbSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={thumbSrc}
+                          alt={item.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <ImageIcon className="h-4 w-4 text-[#444]" />
+                        </div>
+                      )}
+                      {item.mediaType === "VIDEO" && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <Play className="h-3 w-3 text-white" />
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Reorder arrows */}
-                  <div className="flex flex-col gap-0.5">
-                    <button
-                      type="button"
-                      disabled={index === 0 || reordering}
-                      onClick={() => moveItem(index, "up")}
-                      className="rounded p-0.5 text-[#555] transition-colors hover:bg-[#1a1a1a] hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
-                    >
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === tabItems.length - 1 || reordering}
-                      onClick={() => moveItem(index, "down")}
-                      className="rounded p-0.5 text-[#555] transition-colors hover:bg-[#1a1a1a] hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
-                    >
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </button>
+                    {/* Info */}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {item.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-mono text-[#555] uppercase">
+                          {item.mediaType}
+                        </span>
+                        {item.isFeatured && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
+                            <Star className="h-2.5 w-2.5 fill-amber-400" />
+                            Featured
+                          </span>
+                        )}
+                        {item.serviceType === "BUILD" && item.websiteUrl ? (
+                          <span className="flex items-center gap-1 text-[10px] text-cyan-400">
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                            Link added
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Reorder arrows */}
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        disabled={index === 0 || reordering}
+                        onClick={() => moveItem(index, "up")}
+                        className="rounded p-0.5 text-[#555] transition-colors hover:bg-[#1a1a1a] hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === tabItems.length - 1 || reordering}
+                        onClick={() => moveItem(index, "down")}
+                        className="rounded p-0.5 text-[#555] transition-colors hover:bg-[#1a1a1a] hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Actions Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Actions</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-48 border-[#222] bg-[#111] text-white"
+                      >
+                        <DropdownMenuItem
+                          onClick={() => setEditingItem(item)}
+                          className="cursor-pointer hover:bg-[#1a1a1a]"
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit item
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleToggleFeatured(item)}
+                          className="cursor-pointer hover:bg-[#1a1a1a]"
+                        >
+                          <Star
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              item.isFeatured &&
+                                "fill-amber-400 text-amber-400",
+                            )}
+                          />
+                          {item.isFeatured
+                            ? "Remove from featured"
+                            : "Mark as featured"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleToggleVisibility(item)}
+                          className="cursor-pointer hover:bg-[#1a1a1a]"
+                        >
+                          {item.isVisible ? (
+                            <>
+                              <EyeOff className="mr-2 h-4 w-4" />
+                              Hide from site
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Show on site
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-[#222]" />
+                        <DropdownMenuItem
+                          onClick={() => setDeletingId(item.id)}
+                          className="cursor-pointer text-red-400 hover:bg-red-950/20 hover:text-red-300"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete item
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-
-                  {/* Edit */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingItem(item)}
-                    className="h-8 w-8 shrink-0 p-0 text-[#666] hover:bg-[#1a1a1a] hover:text-white"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-
-                  {/* Delete */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDeletingId(item.id)}
-                    className="h-8 w-8 shrink-0 p-0 text-[#666] hover:bg-red-950/30 hover:text-red-400"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -529,6 +619,40 @@ export function PortfolioManager({
               className="bg-red-600 text-white hover:bg-red-500"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Bulk Delete confirmation ───────────────────────────────────────────── */}
+      <AlertDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+      >
+        <AlertDialogContent className="border-[#222] bg-[#111]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">
+              Delete {selectedIds.length} selected portfolio item
+              {selectedIds.length === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#666]">
+              This will permanently delete the selected portfolio items and
+              remove their media assets. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isBulkDeleting}
+              className="border-[#2a2a2a] bg-transparent text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="bg-red-600 text-white hover:bg-red-500"
+            >
+              {isBulkDeleting ? "Deleting..." : "Delete All Selected"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

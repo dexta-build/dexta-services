@@ -29,6 +29,7 @@ import {
 import {
   createSchoolWebsiteTestimonialRecord,
   deleteSchoolWebsiteTestimonialRecord,
+  deleteSchoolWebsiteTestimonialsRecord,
   listSchoolWebsiteTestimonials,
   updateSchoolWebsiteTestimonialRecord,
   weBrandSchoolsPrisma,
@@ -1881,6 +1882,35 @@ export async function deleteSchoolWebsiteTestimonial(
   }
 }
 
+export async function deleteSchoolWebsiteTestimonials(
+  ids: string[],
+): Promise<ActionResult> {
+  try {
+    await requireAuth();
+
+    if (!ids.length) {
+      return { success: false, message: "No testimonials selected." };
+    }
+
+    await deleteSchoolWebsiteTestimonialsRecord(ids);
+
+    revalidateWeBrandSchoolsAdmin();
+    return {
+      success: true,
+      message: `Deleted ${ids.length} testimonial card${ids.length === 1 ? "" : "s"} successfully.`,
+    };
+  } catch (error) {
+    console.error("[deleteSchoolWebsiteTestimonials]", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to delete testimonials.",
+    };
+  }
+}
+
 export async function getReferralLinksAdmin(): Promise<ReferralLinkRow[]> {
   try {
     const rows = await weBrandSchoolsPrisma.referralLink.findMany({
@@ -2183,6 +2213,41 @@ export async function deleteReferralLink(id: string): Promise<ActionResult> {
   }
 }
 
+export async function deleteReferralLinks(
+  ids: string[],
+): Promise<ActionResult> {
+  try {
+    await requireAuth();
+
+    if (!ids.length) {
+      return { success: false, message: "No referrals selected." };
+    }
+
+    await weBrandSchoolsPrisma.referralLink.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        status: "INACTIVE",
+        deletedAt: new Date(),
+      },
+    });
+
+    revalidateWeBrandSchoolsAdmin();
+    return {
+      success: true,
+      message: `Deleted ${ids.length} referral link${ids.length === 1 ? "" : "s"} successfully.`,
+    };
+  } catch (error) {
+    console.error("[deleteReferralLinks]", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to delete referral links.",
+    };
+  }
+}
+
 export async function getSchoolWebsiteTemplatesAdmin(): Promise<
   SchoolWebsiteTemplateRow[]
 > {
@@ -2380,6 +2445,44 @@ export async function deleteSchoolWebsiteTemplate(
       success: false,
       message:
         error instanceof Error ? error.message : "Failed to delete template.",
+    };
+  }
+}
+
+export async function deleteSchoolWebsiteTemplates(
+  ids: string[],
+): Promise<ActionResult> {
+  try {
+    await requireAuth();
+
+    if (!ids.length) {
+      return { success: false, message: "No templates selected." };
+    }
+
+    await weBrandSchoolsPrisma.schoolWebsiteTemplate.updateMany({
+      where: { id: { in: ids } },
+      data: { coverAssetId: null },
+    });
+
+    await weBrandSchoolsPrisma.schoolWebsiteTemplateAsset.deleteMany({
+      where: { templateId: { in: ids } },
+    });
+
+    await weBrandSchoolsPrisma.schoolWebsiteTemplate.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    revalidateWeBrandSchoolsAdmin();
+    return {
+      success: true,
+      message: `Deleted ${ids.length} template${ids.length === 1 ? "" : "s"} successfully.`,
+    };
+  } catch (error) {
+    console.error("[deleteSchoolWebsiteTemplates]", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to delete templates.",
     };
   }
 }
@@ -3902,6 +4005,38 @@ export async function deleteSchoolWebsiteApplication(
         error instanceof Error
           ? error.message
           : "Failed to delete application.",
+    };
+  }
+}
+
+export async function deleteSchoolWebsiteApplications(
+  ids: string[],
+): Promise<ActionResult> {
+  try {
+    await requireAuth();
+
+    if (!ids.length) {
+      return { success: false, message: "No applications selected." };
+    }
+
+    await weBrandSchoolsPrisma.schoolWebsiteApplication.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    revalidateWeBrandSchoolsAdmin();
+
+    return {
+      success: true,
+      message: `Deleted ${ids.length} application${ids.length === 1 ? "" : "s"} successfully.`,
+    };
+  } catch (error) {
+    console.error("[deleteSchoolWebsiteApplications]", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to delete applications.",
     };
   }
 }

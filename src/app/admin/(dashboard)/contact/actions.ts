@@ -84,6 +84,7 @@ type ContactMessageDelegate = {
   ) => Promise<Record<string, unknown> | null>;
   update: (args: Record<string, unknown>) => Promise<unknown>;
   delete: (args: Record<string, unknown>) => Promise<unknown>;
+  deleteMany: (args?: Record<string, unknown>) => Promise<unknown>;
 };
 
 const CONTACT_MESSAGES_PER_PAGE = 10;
@@ -804,6 +805,47 @@ export async function deleteContactMessage(id: number): Promise<ActionResult> {
         error instanceof Error
           ? error.message
           : "Failed to delete contact message.",
+    };
+  }
+}
+
+export async function deleteContactMessages(
+  ids: number[],
+): Promise<ActionResult> {
+  try {
+    await requireAuth();
+
+    if (!ids.length) {
+      return { success: false, message: "No messages selected." };
+    }
+
+    const contactMessage = getContactMessageDelegate();
+
+    if (!contactMessage) {
+      throw new Error(
+        "Contact models are missing from the running Prisma client.",
+      );
+    }
+
+    await contactMessage.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    revalidateContactInbox();
+
+    return {
+      success: true,
+      message: `Deleted ${ids.length} message${ids.length === 1 ? "" : "s"}.`,
+    };
+  } catch (error) {
+    console.error("[Bulk Delete Contact Messages]", error);
+
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to delete contact messages.",
     };
   }
 }

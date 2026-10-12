@@ -2,8 +2,25 @@
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Loader2, Trash2 } from "lucide-react";
+import {
+  Eye,
+  Loader2,
+  Trash2,
+  MoreHorizontal,
+  Play,
+  CheckCircle,
+} from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BulkActionsBar } from "@/components/admin/bulk-actions-bar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +61,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   deleteSchoolWebsiteApplication,
+  deleteSchoolWebsiteApplications,
   startSchoolWebsiteProject,
   updateSchoolWebsiteApplicationStatus,
   type SchoolWebsiteApplicationRow,
@@ -625,6 +643,52 @@ export function ApplicationsManager({
     DEFAULT_GO_LIVE_ADMIN_MESSAGE,
   );
   const [isSendingGoLive, setIsSendingGoLive] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
+  const toggleSelectAll = () => {
+    const currentFilteredIds = filteredApplications.map((app) => app.id);
+    const allSelected = currentFilteredIds.every((id) =>
+      selectedIds.includes(id),
+    );
+    if (allSelected) {
+      setSelectedIds((prev) =>
+        prev.filter((id) => !currentFilteredIds.includes(id)),
+      );
+    } else {
+      setSelectedIds((prev) =>
+        Array.from(new Set([...prev, ...currentFilteredIds])),
+      );
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+
+    setIsBulkDeleting(true);
+    const result = await deleteSchoolWebsiteApplications(selectedIds);
+    setIsBulkDeleting(false);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(result.message);
+    setSelectedIds([]);
+    setShowBulkDeleteDialog(false);
+    if (selectedApplication && selectedIds.includes(selectedApplication.id)) {
+      setSelectedApplication(null);
+    }
+    router.refresh();
+  };
 
   const referralOptions = useMemo(() => {
     const options = new Map<
@@ -809,10 +873,30 @@ export function ApplicationsManager({
         </p>
       </div>
 
+      <BulkActionsBar
+        selectedCount={selectedIds.length}
+        onClearSelection={() => setSelectedIds([])}
+        onDeleteSelected={() => setShowBulkDeleteDialog(true)}
+        isDeleting={isBulkDeleting}
+        itemLabel="applications"
+      />
+
       <div className="overflow-hidden rounded-2xl border border-[#222] bg-[#111]">
         <Table>
           <TableHeader>
             <TableRow className="border-[#222] hover:bg-transparent">
+              <TableHead className="w-12 px-4">
+                <Checkbox
+                  checked={
+                    filteredApplications.length > 0 &&
+                    filteredApplications.every((app) =>
+                      selectedIds.includes(app.id),
+                    )
+                  }
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all applications"
+                />
+              </TableHead>
               <TableHead className="text-[#888]">School Name</TableHead>
               <TableHead className="text-[#888]">Template</TableHead>
               <TableHead className="text-[#888]">Contact Person</TableHead>
@@ -820,16 +904,14 @@ export function ApplicationsManager({
               <TableHead className="text-[#888]">Domain State</TableHead>
               <TableHead className="text-[#888]">Status</TableHead>
               <TableHead className="text-[#888]">Date Submitted</TableHead>
-              <TableHead className="text-right text-[#888]">
-                Quick Actions
-              </TableHead>
+              <TableHead className="text-right text-[#888]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredApplications.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="py-12 text-center text-sm text-[#666]"
                 >
                   {applications.length === 0
@@ -838,143 +920,164 @@ export function ApplicationsManager({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredApplications.map((application) => (
-                <TableRow
-                  key={application.id}
-                  className="cursor-pointer border-[#222] hover:bg-[#171717]"
-                  onClick={() => setSelectedApplication(application)}
-                >
-                  <TableCell className="font-medium text-white">
-                    {application.schoolName}
-                  </TableCell>
-                  <TableCell className="text-[#b3b3b3]">
-                    {application.selectedTemplateName}
-                  </TableCell>
-                  <TableCell className="text-[#b3b3b3]">
-                    {application.officialContactName || "Not provided"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="max-w-[220px] space-y-1">
+              filteredApplications.map((application) => {
+                const isSelected = selectedIds.includes(application.id);
+                return (
+                  <TableRow
+                    key={application.id}
+                    className={cn(
+                      "cursor-pointer border-[#222] hover:bg-[#171717]",
+                      isSelected && "bg-cyan-950/10",
+                    )}
+                    onClick={() => setSelectedApplication(application)}
+                  >
+                    <TableCell
+                      className="px-4"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectOne(application.id)}
+                        aria-label={`Select ${application.schoolName}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium text-white">
+                      {application.schoolName}
+                    </TableCell>
+                    <TableCell className="text-[#b3b3b3]">
+                      {application.selectedTemplateName}
+                    </TableCell>
+                    <TableCell className="text-[#b3b3b3]">
+                      {application.officialContactName || "Not provided"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[220px] space-y-1">
+                        <Badge
+                          variant="outline"
+                          className={referralBadgeClassName(application)}
+                        >
+                          {referralStatusLabel(application)}
+                        </Badge>
+                        {hasReferralSource(application) ? (
+                          <>
+                            <p className="truncate text-sm text-white">
+                              {getReferralName(application)}
+                            </p>
+                            <p className="truncate text-xs text-[#777]">
+                              {getReferralSlug(application)
+                                ? `/r/${getReferralSlug(application)}`
+                                : getReferralCode(application)}
+                            </p>
+                            <p className="truncate text-xs text-[#777]">
+                              {getReferralEmail(application) ?? "No email"}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xs text-[#777]">
+                            No referral link
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-[#b3b3b3]">
+                      {domainStateLabel(application)}
+                    </TableCell>
+                    <TableCell>
                       <Badge
                         variant="outline"
-                        className={referralBadgeClassName(application)}
+                        className={statusClassName(application.status)}
                       >
-                        {referralStatusLabel(application)}
+                        {application.status}
                       </Badge>
-                      {hasReferralSource(application) ? (
-                        <>
-                          <p className="truncate text-sm text-white">
-                            {getReferralName(application)}
-                          </p>
-                          <p className="truncate text-xs text-[#777]">
-                            {getReferralSlug(application)
-                              ? `/r/${getReferralSlug(application)}`
-                              : getReferralCode(application)}
-                          </p>
-                          <p className="truncate text-xs text-[#777]">
-                            {getReferralEmail(application) ?? "No email"}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-[#777]">No referral link</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-[#b3b3b3]">
-                    {domainStateLabel(application)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={statusClassName(application.status)}
-                    >
-                      {application.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-[#888]">
-                    {formatDate(application.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedApplication(application);
-                        }}
-                        className="border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                      >
-                        <Eye className="mr-1.5 h-3.5 w-3.5" />
-                        View
-                      </Button>
-                      {application.project ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openProjectEditor(application.project!.id);
-                          }}
-                          className="bg-blue-600 text-white hover:bg-blue-500"
-                        >
-                          Continue Editing
-                        </Button>
-                      ) : application.status === "PENDING" ||
-                        application.status === "IN_PROGRESS" ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void startProject(application);
-                          }}
-                          disabled={
-                            quickActionId === `${application.id}:START_PROJECT`
-                          }
-                          className="bg-blue-600 text-white hover:bg-blue-500"
-                        >
-                          {quickActionId ===
-                          `${application.id}:START_PROJECT` ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : application.status === "IN_PROGRESS" ? (
-                            "Start Editing"
-                          ) : (
-                            "Start"
-                          )}
-                        </Button>
-                      ) : null}
-                      {application.status === "IN_PROGRESS" &&
-                      application.project ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openGoLiveModal(application);
-                          }}
-                          className="bg-green-600 text-white hover:bg-green-500"
-                        >
-                          Go Live
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setDeletingApplication(application);
-                        }}
-                        className="border-red-500/20 text-red-300 hover:bg-red-500/10 hover:text-red-200"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                    <TableCell className="text-[#888]">
+                      {formatDate(application.createdAt)}
+                    </TableCell>
+                    <TableCell onClick={(event) => event.stopPropagation()}>
+                      <div className="flex justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-48 border-[#222] bg-[#111] text-white"
+                          >
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setSelectedApplication(application)
+                              }
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View details
+                            </DropdownMenuItem>
+                            {application.project ? (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  openProjectEditor(application.project!.id)
+                                }
+                                className="cursor-pointer hover:bg-[#1a1a1a] text-blue-400"
+                              >
+                                <Play className="mr-2 h-4 w-4" />
+                                Continue editing
+                              </DropdownMenuItem>
+                            ) : application.status === "PENDING" ||
+                              application.status === "IN_PROGRESS" ? (
+                              <DropdownMenuItem
+                                onClick={() => void startProject(application)}
+                                disabled={
+                                  quickActionId ===
+                                  `${application.id}:START_PROJECT`
+                                }
+                                className="cursor-pointer hover:bg-[#1a1a1a] text-blue-400"
+                              >
+                                {quickActionId ===
+                                `${application.id}:START_PROJECT` ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Play className="mr-2 h-4 w-4" />
+                                )}
+                                {application.status === "IN_PROGRESS"
+                                  ? "Start editing"
+                                  : "Start project"}
+                              </DropdownMenuItem>
+                            ) : null}
+                            {application.status === "IN_PROGRESS" &&
+                            application.project ? (
+                              <DropdownMenuItem
+                                onClick={() => openGoLiveModal(application)}
+                                className="cursor-pointer hover:bg-[#1a1a1a] text-emerald-400"
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Go live
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuSeparator className="bg-[#222]" />
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setDeletingApplication(application)
+                              }
+                              className="cursor-pointer text-red-400 hover:bg-red-950/20 hover:text-red-300"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete application
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -1142,6 +1245,54 @@ export function ApplicationsManager({
                 </>
               ) : (
                 "Delete application"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={(open) => {
+          if (!open && !isBulkDeleting) {
+            setShowBulkDeleteDialog(false);
+          }
+        }}
+      >
+        <AlertDialogContent className="border-[#222] bg-[#111] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIds.length} application
+              {selectedIds.length === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#777]">
+              This will permanently delete the selected {selectedIds.length}{" "}
+              school website application{selectedIds.length === 1 ? "" : "s"}{" "}
+              and any associated website projects. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isBulkDeleting}
+              className="border-[#2a2a2a] bg-transparent text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isBulkDeleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleBulkDelete();
+              }}
+              className="bg-red-500 text-white hover:bg-red-400"
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete selected"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

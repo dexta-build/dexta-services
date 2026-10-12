@@ -8,13 +8,9 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const rawConnectionString =
-  process.env.DATABASE_URL?.trim() || process.env.DATABASE_URL_UNPOOLED?.trim();
-
-if (!rawConnectionString) {
-  throw new Error(
-    "Missing database connection string. Set DATABASE_URL or DATABASE_URL_UNPOOLED.",
-  );
-}
+  process.env.DATABASE_URL?.trim() ||
+  process.env.DATABASE_URL_UNPOOLED?.trim() ||
+  "postgresql://postgres:postgres@localhost:5432/dexta_services?schema=public";
 
 neonConfig.webSocketConstructor = ws;
 

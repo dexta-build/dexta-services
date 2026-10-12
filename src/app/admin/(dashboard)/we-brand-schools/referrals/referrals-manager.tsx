@@ -2,10 +2,29 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Copy, Pencil, Plus, Power, PowerOff, Trash2 } from "lucide-react";
+import {
+  Copy,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  Trash2,
+  MoreHorizontal,
+  Eye,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BulkActionsBar } from "@/components/admin/bulk-actions-bar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +65,7 @@ import { referralLinkSchema, type ReferralLinkInput } from "@/lib/validators";
 import {
   createReferralLink,
   deleteReferralLink,
+  deleteReferralLinks,
   updateReferralLink,
   updateReferralLinkStatus,
   type ReferralLinkRow,
@@ -542,6 +562,9 @@ export function ReferralsManager({
   const [deleting, setDeleting] = useState<ReferralLinkRow | null>(null);
   const [viewing, setViewing] = useState<ReferralLinkRow | null>(null);
   const [reportFilter, setReportFilter] = useState<ReferralReportFilter>("ALL");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const filteredReferrals = useMemo(() => {
     return referrals.filter((referral) => {
@@ -574,6 +597,46 @@ export function ReferralsManager({
   }, [referrals, reportFilter]);
 
   const refresh = () => router.refresh();
+
+  const toggleSelectAll = () => {
+    const currentFilteredIds = filteredReferrals.map((r) => r.id);
+    const allSelected = currentFilteredIds.every((id) =>
+      selectedIds.includes(id),
+    );
+    if (allSelected) {
+      setSelectedIds((prev) =>
+        prev.filter((id) => !currentFilteredIds.includes(id)),
+      );
+    } else {
+      setSelectedIds((prev) =>
+        Array.from(new Set([...prev, ...currentFilteredIds])),
+      );
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+
+    setIsBulkDeleting(true);
+    const result = await deleteReferralLinks(selectedIds);
+    setIsBulkDeleting(false);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(result.message);
+    setSelectedIds([]);
+    setShowBulkDeleteDialog(false);
+    refresh();
+  };
 
   const handleCreate = async (payload: ReferralLinkInput) => {
     const result = await createReferralLink(payload);
@@ -681,6 +744,14 @@ export function ReferralsManager({
         </div>
       </div>
 
+      <BulkActionsBar
+        selectedCount={selectedIds.length}
+        onClearSelection={() => setSelectedIds([])}
+        onDeleteSelected={() => setShowBulkDeleteDialog(true)}
+        isDeleting={isBulkDeleting}
+        itemLabel="referral links"
+      />
+
       {referrals.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#2a2a2a] bg-[#0a0a0a] px-6 py-12 text-center">
           <p className="text-sm font-medium text-white">
@@ -696,6 +767,16 @@ export function ReferralsManager({
           <Table>
             <TableHeader>
               <TableRow className="border-[#222] bg-[#0d0d0d] hover:bg-[#0d0d0d]">
+                <TableHead className="w-12 px-4">
+                  <Checkbox
+                    checked={
+                      filteredReferrals.length > 0 &&
+                      filteredReferrals.every((r) => selectedIds.includes(r.id))
+                    }
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all referrals"
+                  />
+                </TableHead>
                 <TableHead className="w-16 px-4 text-xs font-semibold tracking-[0.2em] text-[#777] uppercase">
                   SN
                 </TableHead>
@@ -720,126 +801,157 @@ export function ReferralsManager({
               {filteredReferrals.length === 0 ? (
                 <TableRow className="border-[#222] bg-[#111]">
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-12 text-center text-sm text-[#666]"
                   >
                     No referral links match this filter.
                   </TableCell>
                 </TableRow>
               ) : null}
-              {filteredReferrals.map((referral, index) => (
-                <TableRow
-                  key={referral.id}
-                  onClick={() => setViewing(referral)}
-                  className="cursor-pointer border-[#222] bg-[#111] text-white hover:bg-[#171717]"
-                >
-                  <TableCell className="px-4 py-4 align-middle text-sm text-[#777]">
-                    {index + 1}
-                  </TableCell>
-                  <TableCell className="px-4 py-4 align-middle">
-                    <div className="min-w-0">
-                      <p className="line-clamp-1 max-w-[220px] text-sm font-medium text-white">
-                        {referral.displayName}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 align-middle">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void copyLink(referral);
-                      }}
-                      className="max-w-[260px] truncate rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-left text-xs text-cyan-300 transition-colors hover:border-cyan-500/30"
+              {filteredReferrals.map((referral, index) => {
+                const isSelected = selectedIds.includes(referral.id);
+
+                return (
+                  <TableRow
+                    key={referral.id}
+                    onClick={() => setViewing(referral)}
+                    className={cn(
+                      "cursor-pointer border-[#222] bg-[#111] text-white hover:bg-[#171717]",
+                      isSelected && "bg-cyan-950/10",
+                    )}
+                  >
+                    <TableCell
+                      className="px-4 py-4"
+                      onClick={(event) => event.stopPropagation()}
                     >
-                      /webrandschools/r/{referral.slug}
-                    </button>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 align-middle">
-                    <div className="space-y-1">
-                      <Badge className={statusClassName(referral)}>
-                        {statusLabel(referral)}
-                      </Badge>
-                      {referral.expiresAt ? (
-                        <p className="text-[11px] text-[#666]">
-                          Expires {formatDate(referral.expiresAt)}
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectOne(referral.id)}
+                        aria-label={`Select ${referral.displayName}`}
+                      />
+                    </TableCell>
+                    <TableCell className="px-4 py-4 align-middle text-sm text-[#777]">
+                      {index + 1}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 align-middle">
+                      <div className="min-w-0">
+                        <p className="line-clamp-1 max-w-[220px] text-sm font-medium text-white">
+                          {referral.displayName}
                         </p>
-                      ) : (
-                        <p className="text-[11px] text-[#666]">No expiry</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 align-middle">
-                    <div className="space-y-1 text-sm text-[#aaa]">
-                      <p>
-                        {formatCount(referral.applicationCount)} applications
-                      </p>
-                      <p className="text-xs text-[#666]">
-                        {formatCount(referral.liveSiteCount)} live
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 align-middle">
-                    <div className="flex justify-end gap-2">
-                      <Button
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-4 align-middle">
+                      <button
                         type="button"
-                        size="sm"
-                        variant="outline"
                         onClick={(event) => {
                           event.stopPropagation();
                           void copyLink(referral);
                         }}
-                        className="border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+                        className="max-w-[260px] truncate rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-left text-xs text-cyan-300 transition-colors hover:border-cyan-500/30"
                       >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setEditing(referral);
-                        }}
-                        disabled={isDeleted(referral)}
-                        className="border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void toggleStatus(referral);
-                        }}
-                        disabled={isDeleted(referral)}
-                        className="border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                      >
-                        {referral.status === "ACTIVE" ? (
-                          <PowerOff className="h-4 w-4" />
+                        /webrandschools/r/{referral.slug}
+                      </button>
+                    </TableCell>
+                    <TableCell className="px-4 py-4 align-middle">
+                      <div className="space-y-1">
+                        <Badge className={statusClassName(referral)}>
+                          {statusLabel(referral)}
+                        </Badge>
+                        {referral.expiresAt ? (
+                          <p className="text-[11px] text-[#666]">
+                            Expires {formatDate(referral.expiresAt)}
+                          </p>
                         ) : (
-                          <Power className="h-4 w-4" />
+                          <p className="text-[11px] text-[#666]">No expiry</p>
                         )}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setDeleting(referral);
-                        }}
-                        disabled={isDeleted(referral)}
-                        className="border-red-500/20 text-red-300 hover:bg-red-500/10 hover:text-red-200"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-4 align-middle">
+                      <div className="space-y-1 text-sm text-[#aaa]">
+                        <p>
+                          {formatCount(referral.applicationCount)} applications
+                        </p>
+                        <p className="text-xs text-[#666]">
+                          {formatCount(referral.liveSiteCount)} live
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell
+                      className="px-4 py-4 align-middle"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <div className="flex justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-48 border-[#222] bg-[#111] text-white"
+                          >
+                            <DropdownMenuItem
+                              onClick={() => void copyLink(referral)}
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              <Copy className="mr-2 h-4 w-4" />
+                              Copy link
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setViewing(referral)}
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setEditing(referral)}
+                              disabled={isDeleted(referral)}
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit referral
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => void toggleStatus(referral)}
+                              disabled={isDeleted(referral)}
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              {referral.status === "ACTIVE" ? (
+                                <>
+                                  <PowerOff className="mr-2 h-4 w-4 text-amber-400" />
+                                  Deactivate link
+                                </>
+                              ) : (
+                                <>
+                                  <Power className="mr-2 h-4 w-4 text-emerald-400" />
+                                  Activate link
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-[#222]" />
+                            <DropdownMenuItem
+                              onClick={() => setDeleting(referral)}
+                              disabled={isDeleted(referral)}
+                              className="cursor-pointer text-red-400 hover:bg-red-950/20 hover:text-red-300"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete link
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -894,6 +1006,45 @@ export function ReferralsManager({
               className="bg-red-500 text-white hover:bg-red-400"
             >
               Delete referral link
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={(open) => {
+          if (!open && !isBulkDeleting) {
+            setShowBulkDeleteDialog(false);
+          }
+        }}
+      >
+        <AlertDialogContent className="border-[#222] bg-[#111] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIds.length} referral link
+              {selectedIds.length === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#777]">
+              This removes the {selectedIds.length} selected link
+              {selectedIds.length === 1 ? "" : "s"} from the admin list and
+              prevents future attribution. Existing applications will retain
+              their saved referral snapshots.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isBulkDeleting}
+              className="border-[#2a2a2a] bg-transparent text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isBulkDeleting}
+              onClick={handleBulkDelete}
+              className="bg-red-500 text-white hover:bg-red-400"
+            >
+              {isBulkDeleting ? "Deleting..." : "Delete selected"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+CODEBASE_DOCUMENTATION.md
+WE_BRAND_SCHOOLS_PHASE_1.md
