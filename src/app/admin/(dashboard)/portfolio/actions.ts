@@ -368,6 +368,65 @@ export async function deletePortfolioItem(id: string): Promise<ActionResult> {
   }
 }
 
+export async function deletePortfolioItems(
+  ids: string[],
+): Promise<ActionResult> {
+  try {
+    await requireAuth();
+
+    if (!ids.length) {
+      return { success: false, message: "No items selected." };
+    }
+
+    const items = await prisma.portfolioItem.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        mediaPublicId: true,
+        mediaType: true,
+        thumbnailPublicId: true,
+        assets: {
+          select: {
+            publicId: true,
+            mediaType: true,
+            thumbnailPublicId: true,
+          },
+        },
+      },
+    });
+
+    await prisma.portfolioItem.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    for (const item of items) {
+      const resourceType = item.mediaType === "VIDEO" ? "video" : "image";
+      void deleteCloudinaryAsset(item.mediaPublicId, resourceType);
+      if (item.thumbnailPublicId) {
+        void deleteCloudinaryAsset(item.thumbnailPublicId, "image");
+      }
+      for (const asset of item.assets) {
+        void deleteCloudinaryAsset(
+          asset.publicId,
+          asset.mediaType === "VIDEO" ? "video" : "image",
+        );
+        if (asset.thumbnailPublicId) {
+          void deleteCloudinaryAsset(asset.thumbnailPublicId, "image");
+        }
+      }
+    }
+
+    revalidate();
+    return {
+      success: true,
+      message: `Deleted ${ids.length} portfolio item${ids.length === 1 ? "" : "s"} successfully`,
+    };
+  } catch (error) {
+    console.error("[Delete Portfolio Items]", error);
+    return { success: false, message: "Failed to delete portfolio items" };
+  }
+}
+
 // ─── Toggle Featured ──────────────────────────────────────────────────────────
 
 export async function toggleFeatured(

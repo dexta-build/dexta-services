@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   Send,
   Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -23,6 +24,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -40,8 +49,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { BulkActionsBar } from "@/components/admin/bulk-actions-bar";
 import {
   deleteContactMessage,
+  deleteContactMessages,
   markContactMessageRead,
   replyToContactMessage,
   type ContactMessageRow,
@@ -93,11 +104,66 @@ export function ContactMessagesManager({
   const [replyBody, setReplyBody] = useState("");
   const [isReplying, setIsReplying] = useState(false);
   const [markingMessageId, setMarkingMessageId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === messageItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(messageItems.map((m) => m.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleting(true);
+    const ids = Array.from(selectedIds);
+    const result = await deleteContactMessages(ids);
+    setIsBulkDeleting(false);
+    setShowBulkDeleteDialog(false);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(result.message);
+    const deletedCount = ids.length;
+    const deletedUnreadCount = messageItems.filter(
+      (item) => ids.includes(item.id) && !item.isRead,
+    ).length;
+
+    setMessageItems((current) =>
+      current.filter((item) => !ids.includes(item.id)),
+    );
+    setTotalCount((c) => Math.max(0, c - deletedCount));
+    setUnreadCount((c) => Math.max(0, c - deletedUnreadCount));
+    setSelectedIds(new Set());
+    if (selectedMessage && ids.includes(selectedMessage.id)) {
+      setSelectedMessage(null);
+    }
+    router.refresh();
+  };
 
   useEffect(() => {
     setMessageItems(messages.items);
     setUnreadCount(messages.unreadCount);
     setTotalCount(messages.totalCount);
+    setSelectedIds(new Set());
   }, [messages.items, messages.totalCount, messages.unreadCount]);
 
   useEffect(() => {
@@ -268,10 +334,28 @@ export function ContactMessagesManager({
 
       {messageItems.length ? (
         <>
+          <BulkActionsBar
+            selectedCount={selectedIds.size}
+            onClear={() => setSelectedIds(new Set())}
+            onDelete={() => setShowBulkDeleteDialog(true)}
+            isDeleting={isBulkDeleting}
+            itemLabel="message"
+          />
+
           <div className="rounded-2xl border border-[#222] bg-[#111]">
             <Table>
               <TableHeader>
                 <TableRow className="border-[#222] hover:bg-transparent">
+                  <TableHead className="w-12 px-4 py-3">
+                    <Checkbox
+                      checked={
+                        messageItems.length > 0 &&
+                        selectedIds.size === messageItems.length
+                      }
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all messages"
+                    />
+                  </TableHead>
                   <TableHead className="px-4 py-3 text-[#8d8d8d]">
                     Sender
                   </TableHead>
@@ -287,7 +371,7 @@ export function ContactMessagesManager({
                   <TableHead className="px-4 py-3 text-[#8d8d8d]">
                     Received
                   </TableHead>
-                  <TableHead className="px-4 py-3 text-right text-[#8d8d8d]">
+                  <TableHead className="w-20 px-4 py-3 text-right text-[#8d8d8d]">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -297,11 +381,23 @@ export function ContactMessagesManager({
                   <TableRow
                     key={item.id}
                     className={
-                      item.isRead
-                        ? "border-[#222] text-white hover:bg-[#0d0d0d]"
-                        : "border-cyan-500/30 bg-cyan-500/5 text-white hover:bg-cyan-500/10"
+                      selectedIds.has(item.id)
+                        ? "border-cyan-500/40 bg-cyan-500/10 text-white"
+                        : item.isRead
+                          ? "border-[#222] text-white hover:bg-[#0d0d0d]"
+                          : "border-cyan-500/30 bg-cyan-500/5 text-white hover:bg-cyan-500/10"
                     }
                   >
+                    <TableCell
+                      className="px-4 py-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={selectedIds.has(item.id)}
+                        onCheckedChange={() => toggleSelectOne(item.id)}
+                        aria-label={`Select message from ${item.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="px-4 py-4">
                       <div className="flex items-start gap-3">
                         <span
@@ -357,33 +453,39 @@ export function ContactMessagesManager({
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void handleOpenMessage(item)}
-                          className={
-                            item.isRead
-                              ? "border-[#2a2a2a] bg-transparent text-white hover:bg-[#1a1a1a]"
-                              : "border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 hover:text-cyan-200"
-                          }
+                    <TableCell className="px-4 py-4 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-[#888] hover:bg-[#222] hover:text-white"
+                            aria-label={`Actions for message from ${item.name}`}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-44 border-[#222] bg-[#141414] text-white shadow-xl"
                         >
-                          <Eye className="mr-2 h-4 w-4" />
-                          Open
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setDeletingMessage(item)}
-                          className="border-red-500/30 bg-transparent text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </Button>
-                      </div>
+                          <DropdownMenuItem
+                            onClick={() => void handleOpenMessage(item)}
+                            className="flex items-center gap-2 cursor-pointer text-[#ccc] hover:text-white focus:bg-[#222]"
+                          >
+                            <Eye className="h-4 w-4 text-cyan-400" />
+                            <span>View & Reply</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="bg-[#222]" />
+                          <DropdownMenuItem
+                            onClick={() => setDeletingMessage(item)}
+                            className="flex items-center gap-2 cursor-pointer text-red-400 hover:text-red-300 focus:bg-red-950/20 focus:text-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -650,6 +752,48 @@ export function ContactMessagesManager({
               className="bg-red-500 text-white hover:bg-red-400"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+      >
+        <AlertDialogContent className="border-[#222] bg-[#111] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIds.size} messages?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#8d8d8d]">
+              This will permanently delete the {selectedIds.size} selected
+              contact messages from the inbox. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isBulkDeleting}
+              className="border-[#2a2a2a] bg-transparent text-white hover:bg-[#1a1a1a]"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleBulkDelete();
+              }}
+              disabled={isBulkDeleting}
+              className="bg-red-500 text-white hover:bg-red-400"
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Selected"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,7 +2,12 @@
 
 import { headers } from "next/headers";
 import { verifyRecaptcha } from "@/lib/recaptcha";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  rateLimit,
+  RATE_LIMITS,
+  getClientIp,
+  formatRateLimitWaitTime,
+} from "@/lib/rate-limit";
 
 /**
  * Pre-login check: rate limit + reCAPTCHA verification.
@@ -12,18 +17,15 @@ export async function verifyLoginRequest(
   recaptchaToken?: string,
 ): Promise<{ success: boolean; message?: string }> {
   const headersList = await headers();
-  const ip =
-    headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headersList.get("x-real-ip") ??
-    "unknown";
+  const ip = getClientIp(headersList);
 
   // Rate limit login attempts by IP
   const limit = rateLimit(`login:${ip}`, RATE_LIMITS.login);
   if (!limit.success) {
-    const minutes = Math.ceil(limit.resetMs / 60000);
+    const waitTime = formatRateLimitWaitTime(limit.resetMs);
     return {
       success: false,
-      message: `Too many login attempts. Try again in ${minutes} minute${minutes !== 1 ? "s" : ""}.`,
+      message: `Too many login attempts. Try again in ${waitTime}.`,
     };
   }
 

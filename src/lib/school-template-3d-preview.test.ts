@@ -147,6 +147,7 @@ function getHero3dConfig(html: string) {
         layer?: string;
         placement?: string;
         gap?: number;
+        headlineFontSize?: number;
       };
     };
   };

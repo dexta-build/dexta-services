@@ -5,7 +5,16 @@ import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import { sendPendingEmail, sendTeamNotificationEmail } from "@/lib/email";
 import { verifyRecaptcha } from "@/lib/recaptcha";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  rateLimit,
+  RATE_LIMITS,
+  getClientIp,
+  formatRateLimitWaitTime,
+} from "@/lib/rate-limit";
+import {
+  recordSpamAlert,
+  shouldSendNotification,
+} from "@/lib/notification-throttle";
 
 // ─── Validation Schema ────────────────────────────────────────────────────────
 
@@ -20,6 +29,8 @@ const registrationSchema = z.object({
     .url("Please enter a valid URL (include https://)")
     .optional()
     .or(z.literal("")),
+  hp_website: z.string().optional(),
+  _form_ts: z.union([z.number(), z.string()]).optional(),
 });
 
 export type RegistrationFormData = z.infer<typeof registrationSchema>;
@@ -38,16 +49,55 @@ export async function registerForDevDay(
   try {
     // Rate limit by IP
     const headersList = await headers();
-    const ip =
-      headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      headersList.get("x-real-ip") ??
-      "unknown";
+    const ip = getClientIp(headersList);
+
+    // 1. Honeypot check: Bots auto-fill all form fields including hidden traps
+    const honeypot = formData.hp_website;
+    if (typeof honeypot === "string" && honeypot.trim().length > 0) {
+      recordSpamAlert({
+        formName: "devs-day",
+        reason: "honeypot",
+        ip,
+        details: { trapValue: honeypot },
+      });
+      return {
+        success: true,
+        message:
+          "Registration received! We'll review your application and send details to your inbox.",
+      };
+    }
+
+    // 2. Timing check: Headless bots submit instantaneously (< 1500ms)
+    const formTsRaw = formData._form_ts;
+    if (formTsRaw) {
+      const elapsed = Date.now() - Number(formTsRaw);
+      if (!Number.isNaN(elapsed) && elapsed > 0 && elapsed < 1500) {
+        recordSpamAlert({
+          formName: "devs-day",
+          reason: "timing",
+          ip,
+          details: { elapsedMs: elapsed },
+        });
+        return {
+          success: true,
+          message:
+            "Registration received! We'll review your application and send details to your inbox.",
+        };
+      }
+    }
 
     const limit = rateLimit(`devday-reg:${ip}`, RATE_LIMITS.form);
     if (!limit.success) {
+      recordSpamAlert({
+        formName: "devs-day",
+        reason: "rate_limit",
+        ip,
+        details: { resetMs: limit.resetMs },
+      });
+      const waitTime = formatRateLimitWaitTime(limit.resetMs);
       return {
         success: false,
-        message: "Too many requests. Please try again later.",
+        message: `Too many registration attempts. Please wait ${waitTime} before trying again.`,
       };
     }
 
@@ -58,6 +108,11 @@ export async function registerForDevDay(
         "devday_registration",
       );
       if (!recaptchaResult.success) {
+        recordSpamAlert({
+          formName: "devs-day",
+          reason: "recaptcha",
+          ip,
+        });
         return {
           success: false,
           message: "reCAPTCHA verification failed. Please try again.",
@@ -141,12 +196,15 @@ export async function registerForDevDay(
       location: event.location,
     };
 
-    const [pendingEmailResult, teamNotificationResult] =
-      await Promise.allSettled([
-        sendPendingEmail(
-          { name: registration.name, email: registration.email },
-          eventInfo,
-        ),
+    const emailPromises = [
+      sendPendingEmail(
+        { name: registration.name, email: registration.email },
+        eventInfo,
+      ),
+    ];
+
+    if (shouldSendNotification("devs-day-team", 30_000, 10)) {
+      emailPromises.push(
         sendTeamNotificationEmail(
           {
             name: registration.name,
@@ -160,7 +218,15 @@ export async function registerForDevDay(
           },
           eventInfo,
         ),
-      ]);
+      );
+    } else {
+      console.warn(
+        "[Devs Day Notification Throttled] Team email alert throttled to prevent flooding.",
+      );
+    }
+
+    const [pendingEmailResult, teamNotificationResult] =
+      await Promise.allSettled(emailPromises);
 
     if (pendingEmailResult.status === "rejected") {
       console.error(

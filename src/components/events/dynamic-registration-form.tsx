@@ -150,6 +150,27 @@ export function DynamicRegistrationForm({
             <p className="mt-1 text-xs text-[#666]">Secure your spot</p>
           </div>
 
+          {/* Honeypot & Timing Trap for bot detection */}
+          <div
+            className="absolute -left-[9999px] top-0 h-0 w-0 overflow-hidden opacity-0 pointer-events-none select-none"
+            aria-hidden="true"
+            tabIndex={-1}
+          >
+            <label htmlFor="hp_company_website">Leave this field blank</label>
+            <input
+              type="text"
+              id="hp_company_website"
+              {...register("hp_company_website")}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+            <input
+              type="hidden"
+              {...register("_form_ts")}
+              defaultValue={Date.now()}
+            />
+          </div>
+
           {allFields.map((field) => {
             const error = errors[field.name];
             const errorMessage = error?.message as string | undefined;

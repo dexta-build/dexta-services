@@ -5,7 +5,16 @@ import prisma from "@/lib/prisma";
 import { createRegistrationValidator } from "@/lib/validators";
 import { sendPendingEmail, sendTeamNotificationEmail } from "@/lib/email";
 import { verifyRecaptcha } from "@/lib/recaptcha";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  rateLimit,
+  RATE_LIMITS,
+  getClientIp,
+  formatRateLimitWaitTime,
+} from "@/lib/rate-limit";
+import {
+  recordSpamAlert,
+  shouldSendNotification,
+} from "@/lib/notification-throttle";
 
 export async function registerForEvent(
   slug: string,
@@ -14,27 +23,75 @@ export async function registerForEvent(
   try {
     // Rate limit by IP
     const headersList = await headers();
-    const ip =
-      headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      headersList.get("x-real-ip") ??
-      "unknown";
+    const ip = getClientIp(headersList);
+
+    // 1. Honeypot check: Bots auto-fill all form fields including hidden traps
+    const honeypot = formData.hp_company_website;
+    if (typeof honeypot === "string" && honeypot.trim().length > 0) {
+      recordSpamAlert({
+        formName: `event:${slug}`,
+        reason: "honeypot",
+        ip,
+        details: { trapValue: honeypot },
+      });
+      return {
+        success: true,
+        message: "Registration received! Check your inbox for a confirmation.",
+      };
+    }
+
+    // 2. Timing check: Headless bots submit instantaneously (< 1500ms)
+    const formTsRaw = formData._form_ts;
+    if (formTsRaw) {
+      const elapsed = Date.now() - Number(formTsRaw);
+      if (!Number.isNaN(elapsed) && elapsed > 0 && elapsed < 1500) {
+        recordSpamAlert({
+          formName: `event:${slug}`,
+          reason: "timing",
+          ip,
+          details: { elapsedMs: elapsed },
+        });
+        return {
+          success: true,
+          message:
+            "Registration received! Check your inbox for a confirmation.",
+        };
+      }
+    }
 
     const limit = rateLimit(`event-reg:${ip}`, RATE_LIMITS.form);
     if (!limit.success) {
+      recordSpamAlert({
+        formName: `event:${slug}`,
+        reason: "rate_limit",
+        ip,
+        details: { resetMs: limit.resetMs },
+      });
+      const waitTime = formatRateLimitWaitTime(limit.resetMs);
       return {
         success: false,
-        message: "Too many requests. Please try again later.",
+        message: `Too many registration attempts. Please wait ${waitTime} before trying again.`,
       };
     }
 
     // Verify reCAPTCHA
-    const { recaptchaToken, ...formFields } = formData;
+    const {
+      recaptchaToken,
+      hp_company_website: _hp_company_website,
+      _form_ts,
+      ...formFields
+    } = formData;
     if (recaptchaToken) {
       const recaptchaResult = await verifyRecaptcha(
         recaptchaToken,
         "event_registration",
       );
       if (!recaptchaResult.success) {
+        recordSpamAlert({
+          formName: `event:${slug}`,
+          reason: "recaptcha",
+          ip,
+        });
         return {
           success: false,
           message: "reCAPTCHA verification failed. Please try again.",
@@ -105,11 +162,19 @@ export async function registerForEvent(
       location: event.location,
     };
 
-    const [pendingEmailResult, teamNotificationResult] =
-      await Promise.allSettled([
-        sendPendingEmail({ name, email }, eventInfo),
+    const emailPromises = [sendPendingEmail({ name, email }, eventInfo)];
+    if (shouldSendNotification(`event:${slug}`, 30_000, 10)) {
+      emailPromises.push(
         sendTeamNotificationEmail({ name, email, formData: rest }, eventInfo),
-      ]);
+      );
+    } else {
+      console.warn(
+        `[Event Notification Throttled] Team email alert throttled for event ${slug}.`,
+      );
+    }
+
+    const [pendingEmailResult, teamNotificationResult] =
+      await Promise.allSettled(emailPromises);
 
     const emailSent = pendingEmailResult.status === "fulfilled";
 

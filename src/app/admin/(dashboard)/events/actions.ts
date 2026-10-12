@@ -216,6 +216,32 @@ export async function deleteEvent(
   }
 }
 
+export async function deleteEvents(
+  ids: string[],
+): Promise<{ success: boolean; message: string }> {
+  try {
+    await requireAuth();
+
+    if (!ids.length) {
+      return { success: false, message: "No events selected." };
+    }
+
+    await prisma.event.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    revalidatePath("/admin/events");
+    revalidatePath("/events");
+    return {
+      success: true,
+      message: `Deleted ${ids.length} event${ids.length === 1 ? "" : "s"} successfully`,
+    };
+  } catch (error) {
+    console.error("[Bulk Delete Events]", error);
+    return { success: false, message: "Failed to delete events" };
+  }
+}
+
 // ─── Accept Registration ─────────────────────────────────────────────────────
 
 export async function acceptRegistration(
@@ -415,5 +441,31 @@ export async function deleteRegistration(
   } catch (error) {
     console.error("[Delete Registration]", error);
     return { success: false, message: "Failed to delete registration" };
+  }
+}
+
+export async function deleteRegistrations(
+  ids: string[],
+): Promise<{ success: boolean; message: string }> {
+  try {
+    await requireAuth();
+
+    if (!ids.length) {
+      return { success: false, message: "No registrations selected." };
+    }
+
+    await prisma.eventRegistration.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    revalidatePath("/admin/registrations");
+    revalidatePath("/admin/events");
+    return {
+      success: true,
+      message: `Deleted ${ids.length} registration${ids.length === 1 ? "" : "s"} successfully`,
+    };
+  } catch (error) {
+    console.error("[Bulk Delete Registrations]", error);
+    return { success: false, message: "Failed to delete registrations" };
   }
 }

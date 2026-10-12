@@ -2,11 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pencil, Plus, Quote, Trash2 } from "lucide-react";
+import { Pencil, Plus, Quote, Trash2, MoreHorizontal, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { ImageUpload } from "@/components/admin/events/image-upload";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BulkActionsBar } from "@/components/admin/bulk-actions-bar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +57,7 @@ import {
 import {
   createSchoolWebsiteTestimonial,
   deleteSchoolWebsiteTestimonial,
+  deleteSchoolWebsiteTestimonials,
   updateSchoolWebsiteTestimonial,
   type SchoolWebsiteTestimonialRow,
 } from "../actions";
@@ -304,6 +315,43 @@ export function TestimonialsManager({
   );
 
   const refresh = () => router.refresh();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
+  const toggleSelectAll = () => {
+    const allIds = testimonials.map((t) => t.id);
+    const allSelected = allIds.every((id) => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allIds);
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+
+    setIsBulkDeleting(true);
+    const result = await deleteSchoolWebsiteTestimonials(selectedIds);
+    setIsBulkDeleting(false);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(result.message);
+    setSelectedIds([]);
+    setShowBulkDeleteDialog(false);
+    refresh();
+  };
 
   const handleCreate = async (payload: SchoolWebsiteTestimonialInput) => {
     const result = await createSchoolWebsiteTestimonial(payload);
@@ -358,6 +406,14 @@ export function TestimonialsManager({
         </Button>
       </div>
 
+      <BulkActionsBar
+        selectedCount={selectedIds.length}
+        onClearSelection={() => setSelectedIds([])}
+        onDeleteSelected={() => setShowBulkDeleteDialog(true)}
+        isDeleting={isBulkDeleting}
+        itemLabel="testimonials"
+      />
+
       {testimonials.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#2a2a2a] bg-[#0a0a0a] px-6 py-12 text-center">
           <p className="text-sm font-medium text-white">
@@ -373,6 +429,16 @@ export function TestimonialsManager({
           <Table>
             <TableHeader>
               <TableRow className="border-[#222] bg-[#0d0d0d] hover:bg-[#0d0d0d]">
+                <TableHead className="w-12 px-3">
+                  <Checkbox
+                    checked={
+                      testimonials.length > 0 &&
+                      testimonials.every((t) => selectedIds.includes(t.id))
+                    }
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all testimonials"
+                  />
+                </TableHead>
                 <TableHead className="w-[88px] px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#777]">
                   Logo
                 </TableHead>
@@ -388,7 +454,7 @@ export function TestimonialsManager({
                 <TableHead className="w-[80px] px-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#777]">
                   Order
                 </TableHead>
-                <TableHead className="w-[190px] px-3 text-right text-xs font-semibold uppercase tracking-[0.2em] text-[#777]">
+                <TableHead className="w-[100px] px-3 text-right text-xs font-semibold uppercase tracking-[0.2em] text-[#777]">
                   Actions
                 </TableHead>
               </TableRow>
@@ -396,13 +462,27 @@ export function TestimonialsManager({
             <TableBody>
               {testimonials.map((testimonial) => {
                 const initials = getSchoolInitials(testimonial.schoolName);
+                const isSelected = selectedIds.includes(testimonial.id);
 
                 return (
                   <TableRow
                     key={testimonial.id}
-                    className="cursor-pointer border-[#222] bg-[#111] text-white hover:bg-[#171717]"
+                    className={cn(
+                      "cursor-pointer border-[#222] bg-[#111] text-white hover:bg-[#171717]",
+                      isSelected && "bg-cyan-950/10",
+                    )}
                     onClick={() => setViewing(testimonial)}
                   >
+                    <TableCell
+                      className="px-3 py-4"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectOne(testimonial.id)}
+                        aria-label={`Select ${testimonial.schoolName}`}
+                      />
+                    </TableCell>
                     <TableCell className="px-3 py-4 whitespace-normal">
                       <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-[#222] bg-[#0d0d0d]">
                         {testimonial.logoPublicId ? (
@@ -453,32 +533,51 @@ export function TestimonialsManager({
                     <TableCell className="px-3 py-4 text-sm text-[#bbb] whitespace-normal">
                       {testimonial.position}
                     </TableCell>
-                    <TableCell className="px-3 py-4 whitespace-normal">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setEditing(testimonial);
-                          }}
-                          className="h-9 border-[#2a2a2a] bg-transparent px-3 text-white hover:bg-[#1a1a1a]"
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setDeleting(testimonial);
-                          }}
-                          className="h-9 border-red-500/30 bg-transparent px-3 text-red-300 hover:bg-red-500/10 hover:text-red-200"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </Button>
+                    <TableCell
+                      className="px-3 py-4 whitespace-normal"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <div className="flex justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#888] hover:bg-[#1a1a1a] hover:text-white"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-44 border-[#222] bg-[#111] text-white"
+                          >
+                            <DropdownMenuItem
+                              onClick={() => setViewing(testimonial)}
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setEditing(testimonial)}
+                              className="cursor-pointer hover:bg-[#1a1a1a]"
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit card
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-[#222]" />
+                            <DropdownMenuItem
+                              onClick={() => setDeleting(testimonial)}
+                              className="cursor-pointer text-red-400 hover:bg-red-950/20 hover:text-red-300"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete card
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -680,6 +779,44 @@ export function TestimonialsManager({
               className="bg-red-500 text-white hover:bg-red-400"
             >
               Delete card
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={(open) => {
+          if (!open && !isBulkDeleting) {
+            setShowBulkDeleteDialog(false);
+          }
+        }}
+      >
+        <AlertDialogContent className="border-[#222] bg-[#111] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIds.length} testimonial
+              {selectedIds.length === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#888]">
+              This will permanently remove the {selectedIds.length} selected
+              testimonial card{selectedIds.length === 1 ? "" : "s"} from the
+              admin list and the public website carousel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isBulkDeleting}
+              className="border-[#2a2a2a] bg-transparent text-white hover:bg-[#1a1a1a]"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isBulkDeleting}
+              onClick={handleBulkDelete}
+              className="bg-red-500 text-white hover:bg-red-400"
+            >
+              {isBulkDeleting ? "Deleting..." : "Delete selected"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,11 +2,25 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download, Eye, Loader2, Package, Pencil } from "lucide-react";
+import {
+  Download,
+  Eye,
+  Loader2,
+  Package,
+  Pencil,
+  MoreHorizontal,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -145,78 +159,70 @@ export function ProjectsManager({ projects }: ProjectsManagerProps) {
                   {formatDate(project.lastExportedAt)}
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Button
-                      asChild
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                    >
-                      <Link href={getProjectEditorHref(project.id)}>
-                        <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                        Edit
-                      </Link>
-                    </Button>
-                    <Button
-                      asChild
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                    >
-                      <Link
-                        href={getProjectPreviewHref(project)}
-                        target="_blank"
-                      >
-                        <Eye className="mr-1.5 h-3.5 w-3.5" />
-                        Preview
-                      </Link>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void exportProject(project)}
-                      disabled={exportingProjectId === project.id}
-                      className="border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                    >
-                      {exportingProjectId === project.id ? (
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Package className="mr-1.5 h-3.5 w-3.5" />
-                      )}
-                      Export
-                    </Button>
-                    {project.exportZipUrl ? (
-                      <Button
-                        asChild
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="border-[#2a2a2a] text-[#888] hover:bg-[#1a1a1a] hover:text-white"
-                      >
-                        <a
-                          href={project.exportZipUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                  <div className="flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-[#888] hover:bg-[#1a1a1a] hover:text-white"
                         >
-                          <Download className="mr-1.5 h-3.5 w-3.5" />
-                          Download
-                        </a>
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled
-                        className="border-[#2a2a2a] text-[#555]"
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Actions</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-48 border-[#222] bg-[#111] text-white"
                       >
-                        <Download className="mr-1.5 h-3.5 w-3.5" />
-                        Download
-                      </Button>
-                    )}
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={getProjectEditorHref(project.id)}
+                            className="cursor-pointer hover:bg-[#1a1a1a]"
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit project
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={getProjectPreviewHref(project)}
+                            target="_blank"
+                            className="cursor-pointer hover:bg-[#1a1a1a]"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Live preview
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-[#222]" />
+                        <DropdownMenuItem
+                          onClick={() => void exportProject(project)}
+                          disabled={exportingProjectId === project.id}
+                          className="cursor-pointer hover:bg-[#1a1a1a]"
+                        >
+                          {exportingProjectId === project.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Package className="mr-2 h-4 w-4" />
+                          )}
+                          Export zip
+                        </DropdownMenuItem>
+                        {project.exportZipUrl ? (
+                          <DropdownMenuItem asChild>
+                            <a
+                              href={project.exportZipUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="cursor-pointer text-cyan-400 hover:bg-[#1a1a1a]"
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              Download zip
+                            </a>
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>

@@ -18,9 +18,25 @@ export async function verifyRecaptcha(
   token: string,
   expectedAction?: string,
 ): Promise<VerifyResult> {
-  // Skip verification in development — reCAPTCHA always fails on localhost
+  if (!token || typeof token !== "string" || !token.trim()) {
+    return {
+      success: false,
+      score: 0,
+      action: expectedAction ?? "",
+      error: "Missing reCAPTCHA token",
+    };
+  }
+
+  // Skip verification in development if explicitly mock or not in production
   if (process.env.NODE_ENV !== "production") {
-    return { success: true, score: 1, action: expectedAction ?? "" };
+    // If secret is set and token is not mock, try verifying; fallback to pass in local dev
+    if (
+      !process.env.RECAPTCHA_SECRET_KEY ||
+      token === "test" ||
+      token === "mock"
+    ) {
+      return { success: true, score: 1, action: expectedAction ?? "" };
+    }
   }
 
   const secret = process.env.RECAPTCHA_SECRET_KEY;

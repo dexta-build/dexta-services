@@ -73,17 +73,23 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
     submitContactForm,
     initialState,
   ) as unknown as [
-    typeof initialState & { errors?: Record<string, string[]> },
+    typeof initialState & {
+      success?: boolean;
+      errors?: Record<string, string[]>;
+    },
     (payload: FormData) => void,
   ];
   const formRef = useRef<HTMLFormElement>(null);
   const { executeRecaptcha } = useGoogleReCaptcha();
 
   useEffect(() => {
-    if (state?.message?.includes("successfully")) {
+    if (
+      state?.success === true ||
+      (state?.message && state.message.includes("successfully"))
+    ) {
       formRef.current?.reset();
     }
-  }, [state?.message]);
+  }, [state?.success, state?.message]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -92,8 +98,14 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
       const formData = new FormData(form);
 
       if (executeRecaptcha) {
-        const token = await executeRecaptcha("contact");
-        formData.set("recaptchaToken", token);
+        try {
+          const token = await executeRecaptcha("contact");
+          if (token) {
+            formData.set("recaptchaToken", token);
+          }
+        } catch (err) {
+          console.warn("[reCAPTCHA] Failed to execute recaptcha:", err);
+        }
       }
 
       startTransition(() => {
@@ -102,6 +114,8 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
     },
     [executeRecaptcha, formAction],
   );
+
+  const isError = state?.success === false || Boolean(state?.errors);
 
   const inputClass = light ? "form-input-light" : "form-input";
   const labelClass = light
@@ -128,6 +142,23 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
           onSubmit={handleSubmit}
           className="relative z-10 space-y-6"
         >
+          {/* Honeypot field for bot trapping (invisible to real users) */}
+          <div
+            className="absolute -left-[9999px] top-0 h-0 w-0 overflow-hidden opacity-0 pointer-events-none select-none"
+            aria-hidden="true"
+            tabIndex={-1}
+          >
+            <label htmlFor="company_title">Leave this field blank</label>
+            <input
+              type="text"
+              id="company_title"
+              name="company_title"
+              tabIndex={-1}
+              autoComplete="off"
+            />
+            <input type="hidden" name="_form_ts" defaultValue={Date.now()} />
+          </div>
+
           <div>
             <label htmlFor="name" className={labelClass}>
               Name
@@ -178,7 +209,15 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
           </div>
           {state?.message && (
             <p
-              className={`text-sm ${state?.errors ? (light ? "text-red-500" : "text-red-400") : light ? "text-green-600" : "text-green-400"}`}
+              className={`text-sm ${
+                isError
+                  ? light
+                    ? "text-red-500 font-medium"
+                    : "text-red-400 font-medium"
+                  : light
+                    ? "text-green-600 font-medium"
+                    : "text-green-400 font-medium"
+              }`}
             >
               {state.message}
             </p>

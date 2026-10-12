@@ -37,6 +37,8 @@ const formSchema = z.object({
     .url("Please enter a valid URL (include https://)")
     .optional()
     .or(z.literal("")),
+  hp_website: z.string().optional(),
+  _form_ts: z.union([z.number(), z.string()]).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -340,6 +342,27 @@ export default function DevDayPage() {
                       <p className="mt-1 text-sm text-[#666]">
                         Takes 30 seconds. We'll send details to your inbox.
                       </p>
+                    </div>
+
+                    {/* Honeypot & Timing Trap for bot detection */}
+                    <div
+                      className="absolute -left-[9999px] top-0 h-0 w-0 overflow-hidden opacity-0 pointer-events-none select-none"
+                      aria-hidden="true"
+                      tabIndex={-1}
+                    >
+                      <label htmlFor="hp_website">Leave this field blank</label>
+                      <input
+                        type="text"
+                        id="hp_website"
+                        {...register("hp_website")}
+                        tabIndex={-1}
+                        autoComplete="off"
+                      />
+                      <input
+                        type="hidden"
+                        {...register("_form_ts")}
+                        defaultValue={Date.now()}
+                      />
                     </div>
 
                     {/* Name */}
