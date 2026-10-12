@@ -8,37 +8,61 @@ export const metadata: Metadata = {
     "Browse upcoming and past events from Dexta Synergy Services. Register for community events, workshops, and more.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function EventsPage() {
   const now = new Date();
 
-  const events = await prisma.event.findMany({
-    where: { status: { in: ["PUBLISHED", "CLOSED"] } },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      description: true,
-      dateTime: true,
-      timezone: true,
-      location: true,
-      imagePublicId: true,
-      attendeeLimit: true,
-      status: true,
-    },
-    orderBy: { dateTime: "desc" },
-  });
+  let events: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    description: string;
+    dateTime: Date;
+    timezone: string;
+    location: string;
+    imagePublicId: string | null;
+    attendeeLimit: number | null;
+    status: string;
+  }> = [];
 
-  const acceptedCounts =
-    events.length > 0
-      ? await prisma.eventRegistration.groupBy({
-          by: ["eventId"],
-          where: {
-            eventId: { in: events.map((event) => event.id) },
-            status: "ACCEPTED",
-          },
-          _count: { _all: true },
-        })
-      : [];
+  let acceptedCounts: Array<{
+    eventId: string;
+    _count: { _all: number };
+  }> = [];
+
+  try {
+    events = await prisma.event.findMany({
+      where: { status: { in: ["PUBLISHED", "CLOSED"] } },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        dateTime: true,
+        timezone: true,
+        location: true,
+        imagePublicId: true,
+        attendeeLimit: true,
+        status: true,
+      },
+      orderBy: { dateTime: "desc" },
+    });
+
+    if (events.length > 0) {
+      const counts = await prisma.eventRegistration.groupBy({
+        by: ["eventId"],
+        where: {
+          eventId: { in: events.map((event) => event.id) },
+          status: "ACCEPTED",
+        },
+        _count: { _all: true },
+      });
+      acceptedCounts = counts;
+    }
+  } catch (error) {
+    console.warn("Could not fetch events from database:", error);
+  }
 
   const acceptedCountByEventId = new Map(
     acceptedCounts.map((entry) => [entry.eventId, entry._count._all]),

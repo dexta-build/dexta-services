@@ -1,20 +1,27 @@
 import { MetadataRoute } from "next";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://dexta.synergy";
 
-  const events = await prisma.event.findMany({
-    where: { status: "PUBLISHED" },
-    select: { slug: true, updatedAt: true },
-  });
+  let eventPages: MetadataRoute.Sitemap = [];
+  try {
+    const events = await prisma.event.findMany({
+      where: { status: "PUBLISHED" },
+      select: { slug: true, updatedAt: true },
+    });
 
-  const eventPages = events.map((event) => ({
-    url: `${baseUrl}/events/${event.slug}`,
-    lastModified: event.updatedAt,
-    changeFrequency: "weekly" as const,
-    priority: 0.7,
-  }));
+    eventPages = events.map((event) => ({
+      url: `${baseUrl}/events/${event.slug}`,
+      lastModified: event.updatedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
+  } catch {
+    // Graceful fallback if database is unavailable (e.g. CI build without DB secrets)
+  }
 
   return [
     {
