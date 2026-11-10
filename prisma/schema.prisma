@@ -237,19 +237,44 @@ model PortfolioAsset {
 
 // --- Expressions Section ---
 
+// "Our Expressions": products built by Dexta (/expressions).
 model Expression {
-  id           String   @id @default(uuid())
-  name         String
-  logoPublicId String?
-  description  String
-  websiteUrl   String
-  position     Int      @default(0)
+  id             String   @id @default(uuid())
+  name           String
+  logoPublicId   String?
+  description    String
+  websiteUrl     String
+  slug           String?  @unique // /expressions/[slug]
+  tagline        String? // one line under the name
+  category       String? // e.g. "EdTech", "Publishing"
+  color          String? // site surface for its panel: brand, royal, forest, gold...
+  coverPublicId  String? // desktop screenshot
+  mobilePublicId String? // phone screenshot
+  features       String   @default("[]") // JSON array of strings
+  facts          String   @default("[]") // JSON array of { value, label }
+  story          String? // rich-text HTML for the product page
+  position       Int      @default(0)
   isVisible    Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([position])
   @@index([isVisible])
+}
+
+// Client logos for the homepage logo strip and the Works brands wall
+// (shown alongside "Our Expressions" product logos).
+model Client {
+  id           String   @id @default(uuid())
+  name         String
+  logoPublicId String? // Cloudinary public ID; without one the name is shown
+  websiteUrl   String?
+  isVisible    Boolean  @default(true)
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isVisible, position])
 }
 
 // --- Manifesto Section ---
@@ -979,6 +1004,26 @@ model AboutTeamMember {
   imagePublicId       String?
   isVisible           Boolean  @default(true)
   position            Int      @default(0)
+  // Personal portfolio page (/team/[slug]). All optional.
+  slug                String?  @unique
+  headline            String? // one line under the name
+  location            String? // "Dialing in from", e.g. "Port Harcourt, Nigeria"
+  quote               String? // "In [name]'s words"
+  story               String? // longer bio (rich-text HTML)
+  color               String? // card colour: a site surface (ice, mint, gold, lilac, coral...)
+  email               String?
+  yearsExperience     Int?
+  availability        String? // e.g. "Open to new projects"
+  cvUrl               String? // link to a CV / résumé (PDF)
+  tools               String   @default("[]") // JSON: strings or { name, level } (level: Expert | Advanced | Intermediate | 0-100)
+  languages           String   @default("[]") // JSON: { name, level } e.g. { "English", "Native" }
+  experience          String   @default("[]") // JSON: { role, company, start, end, description }
+  education           String   @default("[]") // JSON: { degree, school, start, end, note }
+  certifications      String   @default("[]") // JSON: { name, issuer, year, url }
+  brands              String   @default("[]") // JSON array of brand names they've worked on
+  socials             String   @default("[]") // JSON array of { platform, url }
+  projects            String   @default("[]") // JSON array of { title, description, image, url }
+  posts               Post[] // Thoughts written by this team member
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -1014,4 +1059,167 @@ model AboutValueItem {
 
   @@index([position])
   @@index([isVisible])
+}
+
+// ---------------------------------------------------------------------------
+// Catalogues (the shop). Prices are stored in naira; the site converts them
+// to USD, EUR and GBP for display. Not yet pushed to the database: the
+// public pages use sample data until the catalogue admin is built.
+// ---------------------------------------------------------------------------
+
+enum CatalogueMediaType {
+  IMAGE
+  VIDEO
+  GIF
+}
+
+model Catalogue {
+  id            String              @id @default(uuid())
+  slug          String              @unique
+  title         String
+  description   String              @default("")
+  /// Colour theme key used by the site (gold, coral, stone, lilac, mint, ice…)
+  accent        String              @default("ice")
+  /// Icon key used in menus (heart, party, flower, cake, monitor, briefcase…)
+  icon          String              @default("heart")
+  coverPublicId String?
+  isVisible     Boolean             @default(true)
+  position      Int                 @default(0)
+  categories    CatalogueCategory[]
+  items         CatalogueItem[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([position])
+}
+
+model CatalogueCategory {
+  id          String          @id @default(uuid())
+  catalogueId String
+  catalogue   Catalogue       @relation(fields: [catalogueId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String
+  isVisible   Boolean         @default(true)
+  position    Int             @default(0)
+  items       CatalogueItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([catalogueId, slug])
+  @@index([catalogueId, position])
+}
+
+model CatalogueItem {
+  id          String             @id @default(uuid())
+  catalogueId String
+  catalogue   Catalogue          @relation(fields: [catalogueId], references: [id], onDelete: Cascade)
+  categoryId  String?
+  category    CatalogueCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  slug        String
+  title       String
+  description String             @default("")
+  /// Price per unit in the item's currency (naira by default), whole units.
+  price       Int
+  currency    String             @default("NGN")
+  /// Minimum order quantity
+  moq         Int                @default(1)
+  /// What one unit is: "card", "piece", "pack of 50", "project"…
+  unit        String             @default("piece")
+  tags        String             @default("[]") // JSON array of strings
+  isFeatured  Boolean            @default(false)
+  isVisible   Boolean            @default(true)
+  position    Int                @default(0)
+  media       CatalogueMedia[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([catalogueId, slug])
+  @@index([catalogueId, position])
+  @@index([categoryId])
+}
+
+model CatalogueMedia {
+  id                String             @id @default(uuid())
+  itemId            String
+  item              CatalogueItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  publicId          String
+  mediaType         CatalogueMediaType @default(IMAGE)
+  thumbnailPublicId String?
+  alt               String?
+  position          Int                @default(0)
+  createdAt         DateTime           @default(now())
+
+  @@index([itemId, position])
+}
+
+// --- Offers (public /offers page) ---
+
+// One offer: not tied to any audience, so an offer can span design, build
+// and print. Payment can be a payment link, WhatsApp, or both.
+model Offer {
+  id              String    @id @default(uuid())
+  name            String
+  description     String
+  features        String    @default("[]") // JSON array of strings
+  priceNGN        Int? // whole naira; empty = "Custom quote"
+  priceNote       String? // e.g. "/ month", "one-off", "per project"
+  badge           String? // free text, e.g. "Bundle", "Best value", "15% off"
+  paymentLink     String? // Paystack / Flutterwave / Stripe / any URL
+  whatsappEnabled Boolean   @default(true)
+  startsAt        DateTime? // hidden until then
+  endsAt          DateTime? // shows a countdown; hidden after
+  isHighlighted   Boolean   @default(false)
+  isVisible       Boolean   @default(true)
+  position        Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isVisible, position])
+}
+
+// --- Thoughts (blog at /thoughts) ---
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model PostCategory {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  color       String   @default("ice") // site surface: ice, mint, gold, lilac, coral, stone
+  position    Int      @default(0)
+  posts       Post[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([position])
+}
+
+model Post {
+  id             String           @id @default(uuid())
+  title          String // wrap words in *asterisks* for the serif italic accent
+  slug           String           @unique
+  excerpt        String // card summary and the article's TL;DR
+  content        String // rich-text HTML, sanitised before display
+  coverPublicId  String? // Cloudinary public ID
+  categoryId     String?
+  category       PostCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  authorId       String?
+  author         AboutTeamMember? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  tags           String           @default("[]") // JSON array of strings
+  isFeatured     Boolean          @default(false)
+  status         PostStatus       @default(DRAFT)
+  publishedAt    DateTime?
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([isFeatured])
 }

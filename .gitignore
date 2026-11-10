@@ -45,3 +45,10 @@ next-env.d.ts
 
 CODEBASE_DOCUMENTATION.md
 WE_BRAND_SCHOOLS_PHASE_1.md
+.mcp.json
+# Playwright MCP screenshots/logs
+.playwright-mcp/
+
+# QA production builds
+/.next-qa/
+/.next-qa-dev/

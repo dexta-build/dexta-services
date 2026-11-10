@@ -3,6 +3,8 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import "./globals-3d.css";
 import { fetchContactPageContent } from "@/lib/api";
+import { mont, instrumentSerif } from "@/lib/fonts";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site/site-url";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -10,25 +12,22 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Dexta Synergy Services",
-    template: "%s | Dexta Synergy Services",
+    default: SITE_NAME,
+    template: `%s | ${SITE_NAME}`,
   },
-  description: "Building Digital Ecosystems for SMEs and Startups.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  // No site-wide title here: pages without their own preview text fall back
+  // to their page <title> instead of all showing the site name.
   openGraph: {
-    title: "Dexta Synergy Services",
-    description: "Building Digital Ecosystems for SMEs and Startups.",
-    url: "https://dexta.synergy",
-    siteName: "Dexta Synergy Services",
-    images: [
-      {
-        url: "https://dexta.synergy/og-image.png",
-        width: 1200,
-        height: 630,
-      },
-    ],
-    locale: "en_US",
+    siteName: SITE_NAME,
+    locale: "en_NG",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
   },
 };
 
@@ -43,15 +42,21 @@ export default async function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    name: "Dexta Synergy Services",
+    name: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    logo: `${SITE_URL}/favicon.ico`,
+    image: `${SITE_URL}/opengraph-image`,
     address: contactContent.address,
     telephone: primaryPhone,
     email: primaryEmail,
-    url: "https://dexta.synergy",
+    url: SITE_URL,
   };
 
   return (
-    <html lang="en" className={montserrat.variable}>
+    <html
+      lang="en"
+      className={`${montserrat.variable} ${mont.variable} ${instrumentSerif.variable}`}
+    >
       <head>
         <script
           type="application/ld+json"

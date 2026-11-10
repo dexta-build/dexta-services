@@ -28,7 +28,7 @@ function SubmitButton({ light = false }: { light?: boolean }) {
         type="submit"
         aria-disabled={pending}
         disabled={pending}
-        className="h-12 rounded-full bg-[var(--dexta)] px-7 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="bg-royal h-14 w-full rounded-full px-8 text-[0.9375rem] font-bold text-white transition-[background-color,box-shadow] hover:bg-[#000c99] hover:shadow-[0_10px_30px_-10px_#000c99] disabled:opacity-50 sm:w-auto"
       >
         {pending ? (
           <>
@@ -119,7 +119,7 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
 
   const inputClass = light ? "form-input-light" : "form-input";
   const labelClass = light
-    ? "block text-xs font-semibold uppercase tracking-[0.24em] text-[var(--dexta-primary)] mb-2"
+    ? "mb-2 block text-sm font-bold text-[#202321]"
     : "block text-xs font-mono tracking-wider text-gray-400 mb-2";
   const errorClass = light
     ? "text-red-500 text-xs mt-2"
@@ -130,7 +130,7 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
       <div
         className={
           light
-            ? "rounded-[30px] border border-[var(--dexta-primary)] bg-white p-6 sm:p-8"
+            ? "rounded-[10px] bg-white p-6 shadow-[0_30px_60px_-34px_rgb(0_8_107/0.4)] ring-1 ring-black/5 sm:p-8"
             : "relative border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur-sm"
         }
       >
@@ -245,28 +245,30 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
           box-shadow: 0 0 15px rgba(34, 211, 238, 0.1);
         }
 
-        /* Light variant — used on contact page */
+        /* Light variant — used on the contact page (site design) */
         .form-input-light {
           width: 100%;
-          padding: 0.7rem 1rem;
-          border-radius: 12px;
-          border: 1.5px solid var(--dexta-primary);
-          background-color: #ffffff;
-          color: var(--dexta-secondary);
-          font-family: var(--font-sans);
-          font-size: 0.9375rem;
+          padding: 0.8rem 1rem;
+          border-radius: 8px;
+          border: 1px solid rgb(32 35 33 / 0.18);
+          background-color: #f8f8f5;
+          color: #202321;
+          font-family: inherit;
+          font-size: 1rem;
           transition:
             border-color 0.25s,
-            box-shadow 0.25s;
-          min-height: 2.75rem;
+            box-shadow 0.25s,
+            background-color 0.25s;
+          min-height: 3rem;
         }
         .form-input-light::placeholder {
-          color: #9baacf;
+          color: #737773;
         }
         .form-input-light:focus {
           outline: none;
-          border-color: var(--dexta);
-          box-shadow: 0 0 0 3px rgba(0, 171, 255, 0.15);
+          background-color: #ffffff;
+          border-color: #000c99;
+          box-shadow: 0 0 0 3px rgb(0 171 255 / 0.2);
         }
       `}</style>
     </>

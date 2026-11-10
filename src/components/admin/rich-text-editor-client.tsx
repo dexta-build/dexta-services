@@ -1,4 +1,6 @@
 "use client";
+// TinyMCE editor skin: only the admin needs it, so it loads here, not site-wide.
+import "tinymce/skins/ui/oxide/skin.css";
 
 import "tinymce/tinymce";
 import "tinymce/icons/default";

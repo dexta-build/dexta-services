@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { EVENTS_TAG } from "@/lib/site/events-data";
 import { auth } from "@/lib/auth";
 import { getCloudinaryPublicId } from "@/lib/cloudinary";
 import prisma from "@/lib/prisma";
@@ -85,6 +86,7 @@ export async function createEvent(
 
     revalidatePath("/admin/events");
     revalidatePath("/events");
+    updateTag(EVENTS_TAG);
     return {
       success: true,
       message: "Event created successfully",
@@ -159,6 +161,7 @@ export async function updateEvent(
     revalidatePath(`/admin/events/${id}`);
     revalidatePath("/admin/events");
     revalidatePath("/events");
+    updateTag(EVENTS_TAG);
     return {
       success: true,
       message: "Event updated successfully",
@@ -187,6 +190,7 @@ export async function updateEventStatus(
     revalidatePath(`/admin/events/${id}`);
     revalidatePath("/admin/events");
     revalidatePath("/events");
+    updateTag(EVENTS_TAG);
     return {
       success: true,
       message: `Event ${status.toLowerCase()} successfully`,
@@ -209,6 +213,7 @@ export async function deleteEvent(
 
     revalidatePath("/admin/events");
     revalidatePath("/events");
+    updateTag(EVENTS_TAG);
     return { success: true, message: "Event deleted successfully" };
   } catch (error) {
     console.error("[Delete Event]", error);
@@ -232,6 +237,7 @@ export async function deleteEvents(
 
     revalidatePath("/admin/events");
     revalidatePath("/events");
+    updateTag(EVENTS_TAG);
     return {
       success: true,
       message: `Deleted ${ids.length} event${ids.length === 1 ? "" : "s"} successfully`,
@@ -343,6 +349,7 @@ export async function acceptRegistration(
 
     revalidatePath(`/admin/events/${registration.eventId}`);
     revalidatePath("/events");
+    updateTag(EVENTS_TAG);
 
     let message = "Registration accepted";
     if (autoDeclinedRegistrations.length > 0) {
@@ -403,6 +410,7 @@ export async function declineRegistration(
 
     revalidatePath(`/admin/events/${registration.eventId}`);
     revalidatePath("/events");
+    updateTag(EVENTS_TAG);
     return {
       success: true,
       message: emailFailed

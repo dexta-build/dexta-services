@@ -3,7 +3,7 @@ import DevDayPage from "@/components/devday";
 import { RecaptchaProvider } from "@/components/layout/recaptcha-provider";
 
 export const metadata: Metadata = {
-  title: "Dev Day — Dexta Synergy Services",
+  title: "Dev Day",
   description:
     "Join Dev Day — an online gathering for developers to share ideas, tools, and experiences. Register for free.",
   openGraph: {
