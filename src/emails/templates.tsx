@@ -73,10 +73,12 @@ export function RegistrationReceivedEmail({
   name,
   event,
   teamEmail,
+  payment,
 }: {
   name: string;
   event: EventDetails;
   teamEmail: string;
+  payment?: { price: string; link: string };
 }) {
   return (
     <EmailLayout
@@ -89,6 +91,15 @@ export function RegistrationReceivedEmail({
         . Our team will review it and email you to confirm your seat.
       </Para>
       <EventCard {...event} />
+      {payment && (
+        <>
+          <Para>
+            This is a paid event (<strong>{payment.price}</strong>). If you
+            haven&apos;t paid yet, pay now to secure your seat.
+          </Para>
+          <EmailButton href={payment.link}>Pay {payment.price}</EmailButton>
+        </>
+      )}
       <Muted>Questions? Write to us at {teamEmail}.</Muted>
     </EmailLayout>
   );
@@ -98,10 +109,12 @@ export function RegistrationAcceptedEmail({
   name,
   event,
   teamEmail,
+  payment,
 }: {
   name: string;
   event: EventDetails;
   teamEmail: string;
+  payment?: { price: string; link: string };
 }) {
   return (
     <EmailLayout
@@ -114,6 +127,15 @@ export function RegistrationAcceptedEmail({
         been accepted. We can&apos;t wait to see you there.
       </Para>
       <EventCard {...event} />
+      {payment && (
+        <>
+          <Para>
+            This is a paid event (<strong>{payment.price}</strong>). If you
+            haven&apos;t paid yet, pay now to secure your seat.
+          </Para>
+          <EmailButton href={payment.link}>Pay {payment.price}</EmailButton>
+        </>
+      )}
       <Muted>
         Add it to your calendar so you don&apos;t miss it. Questions? Write to
         us at {teamEmail}.

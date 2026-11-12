@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowUpRight, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
-import { ContactFormEmbed } from "@/components/home/contact-form";
+import { ContactFormEmbed } from "@/components/site/contact-form";
 import { AccentText } from "@/components/site/accent-text";
 import { autoAccent } from "@/components/site/about/about-icon";
 import { Button } from "@/components/site/button";

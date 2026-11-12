@@ -54,6 +54,9 @@ const nextConfig: NextConfig = {
       // The team now lives on the About page; profiles are at /[slug]
       // (old /team/[slug] links redirect from src/app/(public)/team/[slug]).
       { source: "/team", destination: "/about#team", statusCode: 301 },
+      // Devs Day has passed; events now live under /events.
+      { source: "/devs-day", destination: "/events", statusCode: 301 },
+      { source: "/dev-day", destination: "/events", statusCode: 301 },
     ];
   },
   async headers() {

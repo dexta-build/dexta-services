@@ -5,17 +5,17 @@ import {
   GraduationCap,
   HandCoins,
   Home,
-  Images,
   Image as ImageIcon,
+  Images,
   Info,
-  LayoutDashboard,
   Layers,
+  LayoutDashboard,
   LayoutTemplate,
   Lightbulb,
-  Settings as SettingsIcon,
-  ShoppingBag,
   Mail,
   Palette,
+  Settings as SettingsIcon,
+  ShoppingBag,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -373,14 +373,26 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         href: "/admin/kit",
-        label: "Design kit",
-        keywords: "components preview",
+        label: "Admin design kit",
+        keywords: "components preview reference",
+      },
+      {
+        href: "/design-system",
+        label: "Site design system",
+        area: "settings",
+        keywords: "website components preview reference",
       },
     ],
   },
 ];
 
 /** Shown to everyone, at the bottom of the menu. */
+export const HELP_LINK: NavLink = {
+  href: "/admin/help",
+  label: "How to edit your site",
+  keywords: "help guide how to publish draft tips",
+};
+
 export const ACCOUNT_LINK: NavLink = {
   href: "/admin/account",
   label: "Your account",

@@ -67,6 +67,8 @@ export interface EventInfo {
   dateTime: Date;
   timezone: string;
   location: string;
+  /** Paid events: price and where to pay. */
+  payment?: { price: string; link: string };
 }
 
 function formatEventDate(date: Date, timezone: string) {
@@ -138,6 +140,7 @@ export async function sendPendingEmail(
     email: createElement(RegistrationReceivedEmail, {
       name: registration.name,
       event: eventDetails(event),
+      payment: event.payment,
       teamEmail: getTeam().email,
     }),
   });
@@ -154,6 +157,7 @@ export async function sendAcceptanceEmail(
     email: createElement(RegistrationAcceptedEmail, {
       name: registration.name,
       event: eventDetails(event),
+      payment: event.payment,
       teamEmail: getTeam().email,
     }),
   });

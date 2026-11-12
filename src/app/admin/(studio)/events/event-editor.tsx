@@ -46,7 +46,7 @@ import { Tabs } from "@/components/admin/kit/overlays";
 import { Callout } from "@/components/admin/kit/display";
 import { SaveBar } from "@/components/admin/kit/save-bar";
 import { GalleryField } from "@/components/admin/content/section-form";
-import { saveEvent } from "./actions";
+import { removeEventRedirect, saveEvent } from "./actions";
 import { eventState, eventWhen } from "./events-manager";
 import { RegistrationsTable } from "./registrations-table";
 
@@ -60,12 +60,17 @@ const EMPTY: EventForm = {
   image: "",
   attendeeLimit: null,
   status: "DRAFT",
+  isPaid: false,
+  priceNGN: null,
+  priceNote: "",
+  paymentLink: "",
   fields: [],
 };
 
 export function EventEditor({
   id,
   initial,
+  oldSlugs: initialOld = [],
   counts,
   registrations,
   fieldsMap,
@@ -73,6 +78,7 @@ export function EventEditor({
 }: {
   id: string | null;
   initial: EventForm | null;
+  oldSlugs?: string[];
   counts?: { pending: number; accepted: number; declined: number };
   registrations?: AdminRegistration[];
   fieldsMap?: EventFieldsMap;
@@ -85,6 +91,7 @@ export function EventEditor({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [tab, setTab] = useState(params.get("tab") ?? "details");
   const [saving, start] = useTransition();
+  const [oldSlugs, setOldSlugs] = useState(initialOld);
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
   const set = <K extends keyof EventForm>(k: K, v: EventForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -109,6 +116,12 @@ export function EventEditor({
         return;
       }
       setErrors({});
+      if (id && saved.slug && saved.slug !== res.slug)
+        setOldSlugs((o) => [
+          saved.slug,
+          ...o.filter((x) => x !== saved.slug && x !== res.slug),
+        ]);
+      else setOldSlugs((o) => o.filter((x) => x !== res.slug));
       const clean = { ...form, slug: res.slug };
       setForm(clean);
       setSaved(clean);
@@ -131,13 +144,51 @@ export function EventEditor({
           error={errors.title}
           placeholder="e.g. Devs Day 2026"
         />
-        <SlugField
-          value={form.slug}
-          onChange={(v) => set("slug", v)}
-          source={form.title}
-          basePath="/events/"
-          error={errors.slug}
-        />
+        <div className="flex flex-col gap-2">
+          <SlugField
+            value={form.slug}
+            onChange={(v) => set("slug", v)}
+            source={form.title}
+            basePath="/events/"
+            error={errors.slug}
+          />
+          {id && saved.slug && form.slug !== saved.slug && (
+            <p className="text-surface-muted text-xs">
+              When you save, /events/{saved.slug} will keep working and forward
+              to the new address.
+            </p>
+          )}
+          {oldSlugs.length > 0 && (
+            <div className="bg-canvas flex flex-col gap-2 rounded-[8px] p-3">
+              <p className="text-xs font-bold">
+                Old addresses that forward here
+              </p>
+              <ul className="flex flex-col gap-1">
+                {oldSlugs.map((o) => (
+                  <li
+                    key={o}
+                    className="flex items-center justify-between gap-2 text-sm"
+                  >
+                    <span className="truncate">/events/{o}</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!id) return;
+                        const res = await removeEventRedirect(id, o);
+                        if (!res.success) return void toast.error(res.message);
+                        setOldSlugs((x) => x.filter((y) => y !== o));
+                        toast.success(`/events/${o} no longer forwards here`);
+                      }}
+                      className="text-surface-muted hover:text-[#c2410c] shrink-0 text-xs font-bold underline"
+                    >
+                      Stop forwarding
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
         <TextareaField
           label="About this event"
           required
@@ -235,13 +286,64 @@ export function EventEditor({
               )}
           </div>
         </AdminCard>
+        <AdminCard title="Entry">
+          <div className="flex flex-col gap-4">
+            <SegmentedControl
+              label="Tickets"
+              size="sm"
+              value={form.isPaid ? "paid" : "free"}
+              onChange={(v) => set("isPaid", v === "paid")}
+              options={[
+                { value: "free", label: "Free" },
+                { value: "paid", label: "Paid" },
+              ]}
+            />
+            {form.isPaid ? (
+              <>
+                <NumberField
+                  label="Price"
+                  prefix="₦"
+                  min={0}
+                  value={form.priceNGN}
+                  onChange={(v) =>
+                    set("priceNGN", v == null ? null : Math.round(v))
+                  }
+                  error={errors.priceNGN}
+                  required
+                />
+                <TextField
+                  label="Payment link"
+                  type="url"
+                  value={form.paymentLink}
+                  onChange={(e) => set("paymentLink", e.target.value)}
+                  placeholder="https://paystack.com/pay/…"
+                  error={errors.paymentLink}
+                  hint="Your Paystack, Flutterwave or bank payment page. People register on the site, then pay here."
+                  required
+                />
+                <TextField
+                  label="Price note"
+                  maxLength={120}
+                  value={form.priceNote}
+                  onChange={(e) => set("priceNote", e.target.value)}
+                  placeholder="e.g. Early bird until 1 March"
+                  error={errors.priceNote}
+                />
+              </>
+            ) : (
+              <p className="text-surface-muted -mt-2 text-xs">
+                Shown as Free on the event page and cards.
+              </p>
+            )}
+          </div>
+        </AdminCard>
         <AdminCard title="Image">
           <GalleryField
             label="Event image"
             value={form.image ? [form.image] : []}
             onChange={(v) => set("image", v[0] ?? "")}
             max={1}
-            hint="Wide photos work best. Used on the event page, cards and link previews."
+            hint="A photo, poster or flyer. It shows in full on the event page, and cropped on cards and link previews."
           />
         </AdminCard>
       </div>

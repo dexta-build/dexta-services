@@ -12,17 +12,14 @@ import {
   fetchSchoolWebsiteTestimonials,
   fetchWeBrandSchoolsPageContent,
 } from "@/lib/api";
-import { stripHtml } from "@/lib/site/home-data";
+import { WE_BRAND_SCHOOLS_PAGE } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import { loadPage } from "@/lib/content/store";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const content = await fetchWeBrandSchoolsPageContent();
-  return {
-    title: "We Brand Schools",
-    description: stripHtml(content.heroBody).slice(0, 160),
-    alternates: { canonical: "/webrandschools" },
-  };
+  return pageMetadata(WE_BRAND_SCHOOLS_PAGE);
 }
 
 export default async function WeBrandSchoolsRoute() {
@@ -34,6 +31,7 @@ export default async function WeBrandSchoolsRoute() {
     portalCards,
     site,
     whatsappHref,
+    page,
   ] = await Promise.all([
     fetchWeBrandSchoolsPageContent(),
     fetchSchoolWebsiteTestimonials(),
@@ -42,10 +40,12 @@ export default async function WeBrandSchoolsRoute() {
     fetchSchoolPortalFeatureCards(),
     getSiteSettings(),
     getWhatsApp("general"),
+    loadPage(WE_BRAND_SCHOOLS_PAGE),
   ]);
 
   return (
     <SchoolsPage
+      labels={page.data.labels}
       content={content}
       testimonials={testimonials}
       templates={templates}

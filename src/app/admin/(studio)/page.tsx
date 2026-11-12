@@ -26,6 +26,12 @@ import {
 import { Skeleton } from "@/components/admin/kit/display";
 import { Button } from "@/components/site/button";
 import { RecheckMediaButton } from "./dashboard-parts";
+import { InsightsSection } from "./insights";
+import {
+  getInsights,
+  parseRange,
+  type RangeSpec,
+} from "@/lib/analytics/insights";
 
 export const metadata = { title: "Dashboard" };
 
@@ -60,8 +66,13 @@ const inDays = (d: Date, now: number) => {
   return `in ${days} day${days === 1 ? "" : "s"}`;
 };
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
+}) {
   const user = await requirePageAccess(null);
+  const range = parseRange(await searchParams);
   const now = Date.now();
   const soon = new Date(now + 7 * 86_400_000);
   const can = {
@@ -519,7 +530,37 @@ export default async function AdminDashboard() {
           </AdminCard>
         )}
       </div>
+
+      <Suspense key={JSON.stringify(range)} fallback={<InsightsLoading />}>
+        <Insights user={user} range={range} />
+      </Suspense>
     </>
+  );
+}
+
+async function Insights({
+  user,
+  range,
+}: {
+  user: Awaited<ReturnType<typeof requirePageAccess>>;
+  range: RangeSpec;
+}) {
+  const data = await safe(() => getInsights(user, range), null);
+  if (!data) return null;
+  return <InsightsSection data={data} />;
+}
+
+function InsightsLoading() {
+  return (
+    <div className="mt-12 flex flex-col gap-6" aria-busy="true">
+      <Skeleton className="h-8 w-40" />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-32" />
+        ))}
+      </div>
+      <Skeleton className="h-72" />
+    </div>
   );
 }
 

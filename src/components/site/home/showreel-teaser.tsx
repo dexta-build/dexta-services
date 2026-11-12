@@ -1,5 +1,6 @@
 "use client";
 
+import { VideoPlayer } from "@/components/site/video-player";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -140,12 +141,12 @@ export function ShowreelTeaser({
           className="data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] fixed inset-0 z-[101] flex items-center justify-center p-4 outline-none md:p-10"
         >
           <Dialog.Title className="sr-only">Dexta showreel</Dialog.Title>
-          <video
+          <VideoPlayer
             src={video}
             autoPlay
-            controls
-            playsInline
-            className="max-h-full w-full max-w-6xl rounded-[10px] bg-black"
+            label="Dexta showreel"
+            className="aspect-video max-h-full w-full max-w-6xl rounded-[10px]"
+            videoClassName="object-contain"
           />
           <Dialog.Close
             aria-label="Close"

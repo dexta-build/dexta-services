@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { requireAdmin } from "@/lib/admin/session";
 import Image from "next/image";
 import { Layers, PenTool, Printer, Sparkles } from "lucide-react";
 import {
@@ -106,7 +108,16 @@ function MarqueeCard({ src }: { src: string }) {
   );
 }
 
-export default function DesignSystemPage() {
+/**
+ * Reference page for the site's design system. Team only: anyone not signed
+ * in to the admin gets a normal 404, so the public can't reach it.
+ */
+export default async function DesignSystemPage() {
+  try {
+    await requireAdmin(null);
+  } catch {
+    notFound();
+  }
   return (
     <main className="dx-site min-h-screen">
       {/* Intro */}

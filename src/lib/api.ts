@@ -52,37 +52,6 @@ import {
   withWeBrandSchoolsPageContentDefaults,
 } from "./we-brand-schools-defaults";
 
-export const PORTFOLIO_TABS = ["ALL", "DESIGN", "BUILD", "PRINT"] as const;
-export type PortfolioTab = (typeof PORTFOLIO_TABS)[number];
-export type PortfolioServiceType = "DESIGN" | "BUILD" | "PRINT";
-export type PortfolioMediaType = "IMAGE" | "VIDEO";
-
-export type PortfolioAsset = {
-  id: string;
-  publicId: string;
-  mediaType: PortfolioMediaType;
-  thumbnailPublicId: string | null;
-  caption: string | null;
-  position: number;
-};
-
-export type PortfolioItem = {
-  id: string;
-  title: string;
-  description: string;
-  tags: string[];
-  serviceType: PortfolioServiceType;
-  serviceLabel: string;
-  tab: PortfolioTab;
-  mediaType: PortfolioMediaType;
-  mediaPublicId: string;
-  thumbnailPublicId: string | null;
-  websiteUrl: string | null;
-  coverAssetId: string | null;
-  position: number;
-  assets: PortfolioAsset[];
-};
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function normalizeStoredCloudinaryValue(value: string | null | undefined) {

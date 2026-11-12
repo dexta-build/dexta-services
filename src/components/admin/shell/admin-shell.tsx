@@ -9,6 +9,7 @@ import { Dialog, DropdownMenu } from "radix-ui";
 import {
   ChevronDown,
   ExternalLink,
+  LifeBuoy,
   LogOut,
   Menu,
   Search,
@@ -23,10 +24,12 @@ import {
   ADMIN_ONLY_AREAS,
 } from "@/lib/admin/permissions";
 import { ConfirmProvider } from "@/components/admin/kit/feedback";
+import { MarkTeamDevice } from "@/components/site/analytics-tracker";
 import { Kbd, StatusPill } from "@/components/admin/kit/layout";
 import { CommandPalette } from "./command-palette";
 import {
   ACCOUNT_LINK,
+  HELP_LINK,
   AccountIcon,
   isLinkActive,
   navFor,
@@ -82,6 +85,7 @@ export function AdminShell({
 
   return (
     <ConfirmProvider>
+      <MarkTeamDevice />
       <div className="dx-site flex min-h-dvh">
         <a
           href="#admin-main"
@@ -309,7 +313,14 @@ function SidebarContents({
           })}
         </ul>
       </nav>
-      <div className="border-surface-rule border-t p-3">
+      <div className="border-surface-rule flex flex-col gap-0.5 border-t p-3">
+        <NavRow
+          href={HELP_LINK.href}
+          active={pathname.startsWith(HELP_LINK.href)}
+          icon={<LifeBuoy className="size-[18px]" />}
+        >
+          {HELP_LINK.label}
+        </NavRow>
         <NavRow
           href={ACCOUNT_LINK.href}
           active={pathname.startsWith(ACCOUNT_LINK.href)}

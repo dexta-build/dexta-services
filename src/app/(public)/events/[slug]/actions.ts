@@ -9,6 +9,7 @@ import {
   type FieldType,
 } from "@/lib/events/fields";
 import { sendPendingEmail, sendTeamNotificationEmail } from "@/lib/email";
+import { eventPriceLabel } from "@/lib/events/price";
 import { verifyRecaptcha } from "@/lib/recaptcha";
 import {
   rateLimit,
@@ -186,6 +187,13 @@ export async function registerForEvent(
       dateTime: event.dateTime,
       timezone: event.timezone,
       location: event.location,
+      payment:
+        event.isPaid && event.paymentLink
+          ? {
+              price: eventPriceLabel(true, event.priceNGN),
+              link: event.paymentLink,
+            }
+          : undefined,
     };
 
     const emailPromises = [sendPendingEmail({ name, email }, eventInfo)];

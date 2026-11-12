@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
-import "./globals-3d.css";
 import { getSiteSettings } from "@/lib/content/site-settings";
 import { stock } from "@/lib/site/stock-media";
 import { mont, instrumentSerif } from "@/lib/fonts";

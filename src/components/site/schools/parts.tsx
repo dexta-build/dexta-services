@@ -49,6 +49,7 @@ import {
   Label,
   Textarea,
 } from "./ui";
+import { VideoPlayer } from "../video-player";
 import { getCloudinaryUrl } from "@/lib/cloudinary";
 import {
   schoolWebsiteApplicationSchema,
@@ -523,11 +524,11 @@ export function TemplatePreviewDialog({
                     >
                       {activeAsset ? (
                         activeAsset.mediaType === "VIDEO" ? (
-                          <video
+                          <VideoPlayer
                             src={getVideoUrl(activeAsset.publicId)}
-                            controls
-                            playsInline
-                            className="block h-full w-full object-contain"
+                            label={`${template.name} video`}
+                            className="h-full w-full"
+                            videoClassName="object-contain"
                             poster={
                               activeAsset.thumbnailPublicId
                                 ? resolveImageSource(
@@ -1972,12 +1973,12 @@ export function PortalFeaturePreviewDialog({
               <div className="bg-canvas p-5 sm:p-6">
                 <div className="relative overflow-hidden rounded-lg border border-royal/10 bg-white">
                   {activeAsset?.mediaType === "VIDEO" ? (
-                    <video
+                    <VideoPlayer
                       src={getVideoUrl(activeAsset.publicId)}
                       poster={activeAssetPreview ?? undefined}
-                      controls
-                      preload="metadata"
-                      className="h-[280px] w-full bg-royal object-contain sm:h-[360px]"
+                      label={`${card.title} video`}
+                      className="h-[280px] w-full sm:h-[360px]"
+                      videoClassName="object-contain"
                     />
                   ) : activeAssetPreview ? (
                     <>

@@ -75,7 +75,7 @@ export function EventCard({
       </span>
       <span className="flex flex-col gap-2">
         <span className="text-surface-muted text-[0.6875rem] font-bold tracking-[0.08em] uppercase">
-          {event.format}
+          {event.format} · {event.price}
           {event.closed && !past && " · Registration closed"}
         </span>
         <span className="group-hover:text-brand flex items-start justify-between gap-3 text-lg leading-snug font-bold transition-colors md:text-xl">

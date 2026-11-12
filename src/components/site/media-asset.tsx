@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { VideoPlayer } from "./video-player";
 
 export type MediaKind = "image" | "video" | "gif";
 
@@ -43,7 +44,7 @@ export function MediaAsset({
   objectFit = "cover",
   fallbackSrc,
 }: MediaAssetProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<React.ComponentRef<"video">>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const failed = failedSrc === media.src;
   const fit = objectFit === "cover" ? "object-cover" : "object-contain";
@@ -95,6 +96,24 @@ export function MediaAsset({
           fill ? "absolute inset-0" : "aspect-[4/3] w-full",
           className,
         )}
+      />
+    );
+  }
+
+  if (media.kind === "video" && controls) {
+    return (
+      <VideoPlayer
+        ref={videoRef}
+        src={media.src}
+        poster={media.poster}
+        label={media.alt || "Video"}
+        preload={priority ? "auto" : "metadata"}
+        onError={() => setFailedSrc(media.src)}
+        className={cn(
+          fill ? "absolute inset-0 h-full w-full" : "w-full",
+          className,
+        )}
+        videoClassName={fit}
       />
     );
   }
