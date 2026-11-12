@@ -1,26 +1,25 @@
 import type { Metadata } from "next";
-import { PageTransition } from "@/components/layout/page-transition";
-import { WeBrandSchoolsPage } from "@/components/we-brand-schools";
+import { SchoolsPage } from "@/components/site/schools/schools-page";
 import {
-  fetchContactPageContent,
-  fetchContactSocialLinks,
+  getSiteSettings,
+  getWhatsApp,
+  socialLinks,
+} from "@/lib/content/site-settings";
+import {
   fetchSchoolPortalFeatureCards,
   fetchSchoolPortalSectionContent,
-  fetchSchoolWebsiteTestimonials,
   fetchSchoolWebsiteTemplates,
+  fetchSchoolWebsiteTestimonials,
   fetchWeBrandSchoolsPageContent,
 } from "@/lib/api";
+import { WE_BRAND_SCHOOLS_PAGE } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import { loadPage } from "@/lib/content/store";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const content = await fetchWeBrandSchoolsPageContent();
-
-  return {
-    title: "We Brand Schools | Dexta Synergy Services",
-    description: content.heroBody,
-  };
+  return pageMetadata(WE_BRAND_SCHOOLS_PAGE);
 }
 
 export default async function WeBrandSchoolsRoute() {
@@ -30,29 +29,34 @@ export default async function WeBrandSchoolsRoute() {
     templates,
     portalSectionContent,
     portalCards,
-    contactContent,
-    socialLinks,
+    site,
+    whatsappHref,
+    page,
   ] = await Promise.all([
     fetchWeBrandSchoolsPageContent(),
     fetchSchoolWebsiteTestimonials(),
     fetchSchoolWebsiteTemplates(),
     fetchSchoolPortalSectionContent(),
     fetchSchoolPortalFeatureCards(),
-    fetchContactPageContent(),
-    fetchContactSocialLinks(),
+    getSiteSettings(),
+    getWhatsApp("general"),
+    loadPage(WE_BRAND_SCHOOLS_PAGE),
   ]);
 
   return (
-    <PageTransition>
-      <WeBrandSchoolsPage
-        content={content}
-        testimonials={testimonials}
-        templates={templates}
-        portalSectionContent={portalSectionContent}
-        portalCards={portalCards}
-        contactContent={contactContent}
-        socialLinks={socialLinks}
-      />
-    </PageTransition>
+    <SchoolsPage
+      labels={page.data.labels}
+      content={content}
+      testimonials={testimonials}
+      templates={templates}
+      portalSectionContent={portalSectionContent}
+      portalCards={portalCards}
+      contact={{
+        emails: site.business.emails,
+        phones: site.business.phones,
+        socials: socialLinks(site.business).filter((s) => s.isVisible),
+        whatsappHref: whatsappHref || null,
+      }}
+    />
   );
 }

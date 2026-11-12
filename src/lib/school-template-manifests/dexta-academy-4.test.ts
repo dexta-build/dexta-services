@@ -11,7 +11,7 @@ import {
 } from "@/lib/school-template-project-content";
 
 const ABOUT_STORY_IMAGE_URL =
-  "https://res.cloudinary.com/dxoorukfj/image/upload/v1777039633/dxt2-about_ubzert.png";
+  "https://res.cloudinary.com/djyarsuk6/image/upload/v1780937131/sch2_kjwwqi.png";
 
 function getAboutStorySection(
   content: ReturnType<typeof buildSchoolTemplateProjectContent>,
@@ -128,7 +128,7 @@ describe("Dexta Academy 4 manifest", () => {
       "utf8",
     );
 
-    assert.equal(gallerySection?.repeatable?.items.length, 10);
+    assert.equal(gallerySection?.repeatable?.items.length, 9);
     assert.match(sourceHtml, /data-gallery-page-size="6"/);
     assert.match(sourceHtml, /data-gallery-pagination/);
     assert.doesNotMatch(sourceHtml, /<span class="gallery-preview-label"/);
@@ -138,7 +138,7 @@ describe("Dexta Academy 4 manifest", () => {
           /class="gallery-preview-card"[\s\S]*?\bhidden\b|class="gallery-preview-card" hidden/g,
         ) ?? []
       ).length,
-      4,
+      3,
     );
     assert.ok(
       gallerySection?.repeatable?.items.every(

@@ -1,166 +1,73 @@
 import type { Metadata } from "next";
-import { EventCard } from "@/components/events/event-card";
-import prisma from "@/lib/prisma";
+import { AccentText } from "@/components/site/accent-text";
+import { ClosingCta } from "@/components/site/closing-cta";
+import { Container } from "@/components/site/container";
+import { Eyebrow } from "@/components/site/eyebrow";
+import {
+  EventsBoard,
+  type EventFilter,
+} from "@/components/site/events/events-board";
+import { Heading } from "@/components/site/heading";
+import { getEvents } from "@/lib/site/events-data";
+import { EVENTS_PAGE } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import { getWhatsApp } from "@/lib/content/site-settings";
+import { loadPage } from "@/lib/content/store";
 
-export const metadata: Metadata = {
-  title: "Events",
-  description:
-    "Browse upcoming and past events from Dexta Synergy Services. Register for community events, workshops, and more.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(EVENTS_PAGE);
+}
 
-export const dynamic = "force-dynamic";
+const FILTERS: EventFilter[] = [
+  "all",
+  "upcoming",
+  "past",
+  "in-person",
+  "online",
+];
 
-export default async function EventsPage() {
-  const now = new Date();
+type Search = Record<string, string | string[] | undefined>;
 
-  let events: Array<{
-    id: string;
-    slug: string;
-    title: string;
-    description: string;
-    dateTime: Date;
-    timezone: string;
-    location: string;
-    imagePublicId: string | null;
-    attendeeLimit: number | null;
-    status: string;
-  }> = [];
-
-  let acceptedCounts: Array<{
-    eventId: string;
-    _count: { _all: number };
-  }> = [];
-
-  try {
-    events = await prisma.event.findMany({
-      where: { status: { in: ["PUBLISHED", "CLOSED"] } },
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        description: true,
-        dateTime: true,
-        timezone: true,
-        location: true,
-        imagePublicId: true,
-        attendeeLimit: true,
-        status: true,
-      },
-      orderBy: { dateTime: "desc" },
-    });
-
-    if (events.length > 0) {
-      const counts = await prisma.eventRegistration.groupBy({
-        by: ["eventId"],
-        where: {
-          eventId: { in: events.map((event) => event.id) },
-          status: "ACCEPTED",
-        },
-        _count: { _all: true },
-      });
-      acceptedCounts = counts;
-    }
-  } catch (error) {
-    console.warn("Could not fetch events from database:", error);
-  }
-
-  const acceptedCountByEventId = new Map(
-    acceptedCounts.map((entry) => [entry.eventId, entry._count._all]),
-  );
-
-  const eventsWithCounts = events.map((event) => ({
-    ...event,
-    acceptedCount: acceptedCountByEventId.get(event.id) ?? 0,
-  }));
-
-  const upcoming = eventsWithCounts
-    .filter((e) => e.dateTime >= now && e.status === "PUBLISHED")
-    .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-
-  const past = eventsWithCounts
-    .filter((e) => e.dateTime < now || e.status === "CLOSED")
-    .sort((a, b) => b.dateTime.getTime() - a.dateTime.getTime());
-
-  const hasEvents = upcoming.length > 0 || past.length > 0;
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Search>;
+}) {
+  const [search, events, whatsappHref] = await Promise.all([
+    searchParams,
+    getEvents(),
+    getWhatsApp("events"),
+  ]);
+  const { data: c, hidden } = await loadPage(EVENTS_PAGE);
+  const raw = Array.isArray(search.filter) ? search.filter[0] : search.filter;
+  const initialFilter = FILTERS.includes(raw as EventFilter)
+    ? (raw as EventFilter)
+    : "all";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-4 pb-20 pt-32 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-12 text-center">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[4px] text-cyan-400">
-            Events
+    <main className="dx-site">
+      <section className="bg-canvas pt-12 pb-12 md:pt-16 md:pb-16">
+        <Container className="flex max-w-3xl flex-col items-center gap-5 text-center">
+          {c.hero.eyebrow && <Eyebrow>{c.hero.eyebrow}</Eyebrow>}
+          <Heading size="display" as="h1">
+            <AccentText text={c.hero.title} />
+          </Heading>
+          <p className="text-lead text-surface-muted max-w-2xl">
+            {c.hero.body}
           </p>
-          <h1 className="text-3xl font-bold text-white sm:text-4xl">
-            Our Events
-          </h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-[#888]">
-            Join our community events — connect, learn, and grow with fellow
-            developers and creators.
-          </p>
-        </div>
+        </Container>
+      </section>
 
-        {!hasEvents ? (
-          <div className="py-20 text-center">
-            <p className="text-lg text-[#666]">No events at the moment.</p>
-            <p className="mt-2 text-sm text-[#444]">Check back soon!</p>
-          </div>
-        ) : (
-          <div className="space-y-16">
-            {/* Upcoming Events */}
-            {upcoming.length > 0 && (
-              <section>
-                <h2 className="mb-6 flex items-center gap-3 text-lg font-semibold text-white">
-                  <span className="h-2 w-2 rounded-full bg-green-400" />
-                  Upcoming
-                </h2>
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {upcoming.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      slug={event.slug}
-                      title={event.title}
-                      description={event.description}
-                      dateTime={event.dateTime}
-                      timezone={event.timezone}
-                      location={event.location}
-                      imagePublicId={event.imagePublicId}
-                      attendeeLimit={event.attendeeLimit}
-                      acceptedCount={event.acceptedCount}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
+      <EventsBoard
+        events={events}
+        serverNow={Date.now()}
+        initialFilter={initialFilter}
+        labels={c.board}
+      />
 
-            {/* Past Events */}
-            {past.length > 0 && (
-              <section>
-                <h2 className="mb-6 flex items-center gap-3 text-lg font-semibold text-[#888]">
-                  <span className="h-2 w-2 rounded-full bg-[#444]" />
-                  Past Events
-                </h2>
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {past.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      slug={event.slug}
-                      title={event.title}
-                      description={event.description}
-                      dateTime={event.dateTime}
-                      timezone={event.timezone}
-                      location={event.location}
-                      imagePublicId={event.imagePublicId}
-                      attendeeLimit={event.attendeeLimit}
-                      acceptedCount={event.acceptedCount}
-                      isPast
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+      {!hidden.closing && (
+        <ClosingCta content={c.closing} whatsappHref={whatsappHref} />
+      )}
+    </main>
   );
 }

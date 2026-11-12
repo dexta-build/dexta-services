@@ -2,8 +2,14 @@
 
 import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
-import { createRegistrationValidator } from "@/lib/validators";
+import {
+  answerText,
+  checkRegistration,
+  parseOptions,
+  type FieldType,
+} from "@/lib/events/fields";
 import { sendPendingEmail, sendTeamNotificationEmail } from "@/lib/email";
+import { eventPriceLabel } from "@/lib/events/price";
 import { verifyRecaptcha } from "@/lib/recaptcha";
 import {
   rateLimit,
@@ -19,7 +25,11 @@ import {
 export async function registerForEvent(
   slug: string,
   formData: Record<string, string>,
-): Promise<{ success: boolean; message: string }> {
+): Promise<{
+  success: boolean;
+  message: string;
+  errors?: Record<string, string>;
+}> {
   try {
     // Rate limit by IP
     const headersList = await headers();
@@ -104,31 +114,48 @@ export async function registerForEvent(
       include: { formFields: { orderBy: { position: "asc" } } },
     });
 
-    if (!event || event.status !== "PUBLISHED") {
+    if (
+      !event ||
+      event.status !== "PUBLISHED" ||
+      event.dateTime.getTime() <= Date.now()
+    ) {
       return {
         success: false,
         message: "This event is not accepting registrations.",
       };
     }
+    if (event.attendeeLimit) {
+      const accepted = await prisma.eventRegistration.count({
+        where: { eventId: event.id, status: "ACCEPTED" },
+      });
+      if (accepted >= event.attendeeLimit)
+        return {
+          success: false,
+          message: "Sorry, this event is fully booked.",
+        };
+    }
 
-    // Validate
-    const schema = createRegistrationValidator(
+    // Validate (the same checks as the form in the browser)
+    const checked = checkRegistration(
       event.formFields.map((f) => ({
         name: f.name,
-        type: f.type,
+        label: f.label,
+        type: f.type as FieldType,
+        placeholder: f.placeholder ?? "",
         required: f.required,
+        options: parseOptions(f.options),
       })),
+      formFields,
     );
-
-    const parsed = schema.safeParse(formFields);
-    if (!parsed.success) {
+    if (!checked.ok) {
       return {
         success: false,
-        message: parsed.error.issues[0]?.message ?? "Validation failed",
+        message: "Some answers need attention.",
+        errors: checked.errors,
       };
     }
 
-    const { name, email, ...rest } = parsed.data as Record<string, string>;
+    const { name, email, answers: rest } = checked;
 
     // Check duplicate
     const existing = await prisma.eventRegistration.findUnique({
@@ -160,12 +187,29 @@ export async function registerForEvent(
       dateTime: event.dateTime,
       timezone: event.timezone,
       location: event.location,
+      payment:
+        event.isPaid && event.paymentLink
+          ? {
+              price: eventPriceLabel(true, event.priceNGN),
+              link: event.paymentLink,
+            }
+          : undefined,
     };
 
     const emailPromises = [sendPendingEmail({ name, email }, eventInfo)];
     if (shouldSendNotification(`event:${slug}`, 30_000, 10)) {
       emailPromises.push(
-        sendTeamNotificationEmail({ name, email, formData: rest }, eventInfo),
+        sendTeamNotificationEmail(
+          {
+            name,
+            email,
+            // Readable answers under their question labels.
+            formData: Object.fromEntries(
+              event.formFields.map((f) => [f.label, answerText(rest[f.name])]),
+            ),
+          },
+          eventInfo,
+        ),
       );
     } else {
       console.warn(

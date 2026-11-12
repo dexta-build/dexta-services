@@ -1,5 +1,17 @@
 import * as Brevo from "@getbrevo/brevo";
 
+import { createElement } from "react";
+import { render } from "@react-email/render";
+import { SITE_URL } from "@/lib/site/site-url";
+import {
+  EventFullEmail,
+  NewRegistrationEmail,
+  RegistrationAcceptedEmail,
+  RegistrationDeclinedEmail,
+  RegistrationReceivedEmail,
+  type EventDetails,
+} from "@/emails/templates";
+
 // ─── Brevo Client ────────────────────────────────────────────────────────────
 
 function getBrevoClient() {
@@ -25,59 +37,6 @@ function getTeam() {
   };
 }
 
-// ─── HTML Template Builder ───────────────────────────────────────────────────
-
-export function buildEmailHtml({
-  tag,
-  heading,
-  body,
-  footer,
-}: {
-  tag?: string;
-  heading: string;
-  body: string;
-  footer?: string;
-}) {
-  return `<!DOCTYPE html>
-<html>
-  <body style="margin:0;padding:0;background:#0a0a0a;font-family:'Courier New',monospace;">
-    <div style="max-width:580px;margin:0 auto;padding:40px 24px;">
-      <div style="border:1px solid #333;border-radius:12px;padding:32px;background:#1a1a1a;">
-        ${tag ? `<p style="color:#00b2ff;font-size:12px;letter-spacing:4px;margin:0 0 8px;">${tag}</p>` : ""}
-        <h1 style="color:#ffffff;font-size:22px;margin:0 0 16px;">${heading}</h1>
-        ${body}
-        <div style="margin-top:28px;padding-top:20px;border-top:1px solid #333;">
-          <p style="color:#444;font-size:11px;margin:0;">${footer ?? "Dexta Synergy Services &middot; @hellodexta &middot; Port Harcourt, Nigeria"}</p>
-        </div>
-      </div>
-    </div>
-  </body>
-</html>`;
-}
-
-export function buildRegularEmailHtml({
-  heading,
-  body,
-  footer,
-}: {
-  heading?: string;
-  body: string;
-  footer?: string;
-}) {
-  return `<!DOCTYPE html>
-<html>
-  <body style="margin:0;padding:0;background:#ffffff;color:#222222;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;">
-    <div style="max-width:640px;margin:0;padding:24px;">
-      ${heading ? `<p style="margin:0 0 18px;color:#111111;font-size:16px;font-weight:700;">${heading}</p>` : ""}
-      ${body}
-      <p style="margin:28px 0 0;color:#666666;font-size:13px;">
-        ${footer ?? "Dexta Synergy Services"}
-      </p>
-    </div>
-  </body>
-</html>`;
-}
-
 // ─── Generic Send ────────────────────────────────────────────────────────────
 
 export async function sendEmail({
@@ -101,21 +60,23 @@ export async function sendEmail({
   await client.sendTransacEmail(email);
 }
 
-// ─── Event-Specific Emails ───────────────────────────────────────────────────
+// ─── Event emails (React Email templates in src/emails) ──────────────────────
 
-interface EventInfo {
+export interface EventInfo {
   title: string;
   dateTime: Date;
   timezone: string;
   location: string;
+  /** Paid events: price and where to pay. */
+  payment?: { price: string; link: string };
 }
 
 function formatEventDate(date: Date, timezone: string) {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
-    year: "numeric",
-    month: "long",
     day: "numeric",
+    month: "long",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     timeZone: timezone,
@@ -123,34 +84,64 @@ function formatEventDate(date: Date, timezone: string) {
   }).format(date);
 }
 
+/** The event as the templates show it. */
+export function eventDetails(event: EventInfo): EventDetails {
+  return {
+    title: event.title,
+    when: formatEventDate(event.dateTime, event.timezone),
+    where: event.location,
+  };
+}
+
+/** The team's address, for replies and "questions?" lines. */
+export function teamAddress() {
+  return getTeam();
+}
+
+/** Sends a React Email template. */
+export async function sendTemplate({
+  to,
+  subject,
+  email,
+  replyTo,
+  attachments,
+}: {
+  to: { email: string; name?: string };
+  subject: string;
+  email: React.ReactElement;
+  replyTo?: { email: string; name?: string };
+  /** Real attachments: public file addresses the email service fetches. */
+  attachments?: { url: string; name: string }[];
+}) {
+  const [htmlContent, textContent] = await Promise.all([
+    render(email),
+    render(email, { plainText: true }),
+  ]);
+  const client = getBrevoClient();
+  const message = new Brevo.SendSmtpEmail();
+  message.subject = subject.replace(/[\r\n]+/g, " ");
+  message.sender = getSender();
+  message.to = [to];
+  message.htmlContent = htmlContent;
+  message.textContent = textContent;
+  if (replyTo) message.replyTo = replyTo;
+  if (attachments?.length) message.attachment = attachments;
+  await client.sendTransacEmail(message);
+}
+
 export async function sendPendingEmail(
   registration: { name: string; email: string },
   event: EventInfo,
 ) {
-  const firstName = registration.name.split(" ")[0];
-  const team = getTeam();
-
-  await sendEmail({
+  await sendTemplate({
     to: { email: registration.email, name: registration.name },
-    subject: `Registration received — ${event.title}`,
-    htmlContent: buildEmailHtml({
-      tag: "REGISTRATION RECEIVED",
-      heading: `Thanks, ${firstName}!`,
-      body: `
-        <p style="color:#a0a0a0;font-size:14px;line-height:1.8;margin:0 0 24px;">
-          We've received your registration for <strong style="color:#fff;">${event.title}</strong>.
-          Your spot is being reviewed and we'll notify you once it's confirmed.
-        </p>
-        <div style="background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:20px;margin-bottom:24px;">
-          <p style="color:#666;font-size:11px;letter-spacing:2px;margin:0 0 8px;">EVENT DETAILS</p>
-          <p style="color:#fff;font-size:14px;margin:0 0 4px;">${event.title}</p>
-          <p style="color:#a0a0a0;font-size:13px;margin:0 0 4px;">${formatEventDate(event.dateTime, event.timezone)}</p>
-          <p style="color:#a0a0a0;font-size:13px;margin:0;">${event.location}</p>
-        </div>
-        <p style="color:#a0a0a0;font-size:13px;margin:0;">
-          Questions? Reply to this email or reach us at
-          <a href="mailto:${team.email}" style="color:#00b2ff;text-decoration:none;">${team.email}</a>
-        </p>`,
+    subject: `Registration received: ${event.title}`,
+    replyTo: getTeam(),
+    email: createElement(RegistrationReceivedEmail, {
+      name: registration.name,
+      event: eventDetails(event),
+      payment: event.payment,
+      teamEmail: getTeam().email,
     }),
   });
 }
@@ -159,32 +150,15 @@ export async function sendAcceptanceEmail(
   registration: { name: string; email: string },
   event: EventInfo,
 ) {
-  const firstName = registration.name.split(" ")[0];
-  const team = getTeam();
-
-  await sendEmail({
+  await sendTemplate({
     to: { email: registration.email, name: registration.name },
-    subject: `You're in — ${event.title}!`,
-    htmlContent: buildEmailHtml({
-      tag: "REGISTRATION CONFIRMED",
-      heading: `You're in, ${firstName}!`,
-      body: `
-        <p style="color:#a0a0a0;font-size:14px;line-height:1.8;margin:0 0 24px;">
-          Great news — your registration for <strong style="color:#fff;">${event.title}</strong> has been accepted!
-        </p>
-        <div style="background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:20px;margin-bottom:24px;">
-          <p style="color:#666;font-size:11px;letter-spacing:2px;margin:0 0 8px;">EVENT DETAILS</p>
-          <p style="color:#fff;font-size:14px;margin:0 0 4px;">${event.title}</p>
-          <p style="color:#a0a0a0;font-size:13px;margin:0 0 4px;">${formatEventDate(event.dateTime, event.timezone)}</p>
-          <p style="color:#a0a0a0;font-size:13px;margin:0;">No. 149 NTA road, Opp. Sumec Firman Mgbuogba, Port Harcourt, Rivers state</p>
-        </div>
-        <p style="color:#a0a0a0;font-size:13px;margin:0 0 4px;">
-          We'll send you the final details closer to the date. In the meantime, keep building great things.
-        </p>
-        <p style="color:#a0a0a0;font-size:13px;margin:0;">
-          Questions? Reach us at
-          <a href="mailto:${team.email}" style="color:#00b2ff;text-decoration:none;">${team.email}</a>
-        </p>`,
+    subject: `You're in: ${event.title}`,
+    replyTo: getTeam(),
+    email: createElement(RegistrationAcceptedEmail, {
+      name: registration.name,
+      event: eventDetails(event),
+      payment: event.payment,
+      teamEmail: getTeam().email,
     }),
   });
 }
@@ -194,32 +168,15 @@ export async function sendDeclineEmail(
   event: EventInfo,
   reason?: string,
 ) {
-  const firstName = registration.name.split(" ")[0];
-  const team = getTeam();
-
-  const reasonText = reason
-    ? `<p style="color:#a0a0a0;font-size:13px;line-height:1.8;margin:0 0 16px;"><strong style="color:#fff;">Reason:</strong> ${reason}</p>`
-    : "";
-
-  await sendEmail({
+  await sendTemplate({
     to: { email: registration.email, name: registration.name },
-    subject: `Update on your registration — ${event.title}`,
-    htmlContent: buildEmailHtml({
-      tag: "REGISTRATION UPDATE",
-      heading: `Hi ${firstName},`,
-      body: `
-        <p style="color:#a0a0a0;font-size:14px;line-height:1.8;margin:0 0 16px;">
-          Thank you for your interest in <strong style="color:#fff;">${event.title}</strong>.
-          Unfortunately, we're unable to confirm your registration at this time.
-        </p>
-        ${reasonText}
-        <p style="color:#a0a0a0;font-size:14px;line-height:1.8;margin:0 0 24px;">
-          We hope to see you at a future event. Keep an eye on our upcoming events!
-        </p>
-        <p style="color:#a0a0a0;font-size:13px;margin:0;">
-          Questions? Reach us at
-          <a href="mailto:${team.email}" style="color:#00b2ff;text-decoration:none;">${team.email}</a>
-        </p>`,
+    subject: `An update on your registration: ${event.title}`,
+    replyTo: getTeam(),
+    email: createElement(RegistrationDeclinedEmail, {
+      name: registration.name,
+      event: eventDetails(event),
+      reason,
+      teamEmail: getTeam().email,
     }),
   });
 }
@@ -230,7 +187,15 @@ export async function sendEventFullEmail(
 ) {
   for (const reg of registrations) {
     try {
-      await sendDeclineEmail(reg, event, "Event capacity reached");
+      await sendTemplate({
+        to: { email: reg.email, name: reg.name },
+        subject: `${event.title} is fully booked`,
+        replyTo: getTeam(),
+        email: createElement(EventFullEmail, {
+          name: reg.name,
+          event: eventDetails(event),
+        }),
+      });
     } catch {
       console.error(`[Event Full Email] Failed for ${reg.email}`);
     }
@@ -246,41 +211,19 @@ export async function sendTeamNotificationEmail(
   event: EventInfo,
 ) {
   const team = getTeam();
-
-  const fieldsHtml = Object.entries(registration.formData)
-    .map(
-      ([key, value]) => `
-        <tr>
-          <td style="padding:10px 0;color:#666;font-size:12px;letter-spacing:1px;width:140px;">${key.toUpperCase().replace(/_/g, " ")}</td>
-          <td style="padding:10px 0;color:#fff;font-size:14px;">${value || "—"}</td>
-        </tr>`,
-    )
-    .join("");
-
-  await sendEmail({
+  await sendTemplate({
     to: { email: team.email, name: team.name },
-    subject: `New registration — ${event.title}: ${registration.name}`,
+    subject: `New registration for ${event.title}: ${registration.name}`,
     replyTo: { email: registration.email, name: registration.name },
-    htmlContent: buildEmailHtml({
-      tag: event.title.toUpperCase(),
-      heading: "New Registration",
-      body: `
-        <p style="color:#666;font-size:13px;margin:0 0 28px;">Someone just registered for ${event.title}.</p>
-        <div style="border-top:1px solid #333;padding-top:24px;">
-          <table style="width:100%;border-collapse:collapse;">
-            <tr>
-              <td style="padding:10px 0;color:#666;font-size:12px;letter-spacing:1px;width:140px;">NAME</td>
-              <td style="padding:10px 0;color:#fff;font-size:14px;">${registration.name}</td>
-            </tr>
-            <tr>
-              <td style="padding:10px 0;color:#666;font-size:12px;letter-spacing:1px;">EMAIL</td>
-              <td style="padding:10px 0;font-size:14px;">
-                <a href="mailto:${registration.email}" style="color:#00b2ff;text-decoration:none;">${registration.email}</a>
-              </td>
-            </tr>
-            ${fieldsHtml}
-          </table>
-        </div>`,
+    email: createElement(NewRegistrationEmail, {
+      name: registration.name,
+      email: registration.email,
+      event: eventDetails(event),
+      answers: Object.entries(registration.formData).map(([label, value]) => ({
+        label,
+        value,
+      })),
+      adminUrl: `${SITE_URL}/admin/inbox`,
     }),
   });
 }

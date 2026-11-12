@@ -3,7 +3,12 @@
 import { cookies, headers } from "next/headers";
 import { revalidatePath, updateTag } from "next/cache";
 import prisma from "@/lib/prisma";
-import { buildRegularEmailHtml, sendEmail } from "@/lib/email";
+import { createElement } from "react";
+import { sendTemplate } from "@/lib/email";
+import {
+  ReferralUsedEmail,
+  SchoolApplicationReceivedEmail,
+} from "@/emails/schools";
 import { verifyRecaptcha } from "@/lib/recaptcha";
 import {
   rateLimit,
@@ -33,18 +38,16 @@ export type SchoolWebsiteApplicationActionResult = {
 
 const templateSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+const formatSubmitted = (value: Date) =>
+  new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Africa/Lagos",
+  }).format(value);
+
 type HeadersLike = {
   get(name: string): string | null;
 };
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 function getPublicOrigin(headersList: HeadersLike) {
   const host = headersList.get("x-forwarded-host") ?? headersList.get("host");
@@ -189,27 +192,18 @@ async function notifyReferralOwnerApplicationSubmitted({
   }
 
   try {
-    await sendEmail({
+    await sendTemplate({
       to: {
         email: referral.email,
         name: referral.displayName,
       },
       subject,
-      htmlContent: buildRegularEmailHtml({
-        heading: "Your referral link was used",
-        body: `
-          <p style="margin:0 0 16px;">Hello ${escapeHtml(referral.displayName)},</p>
-          <p style="margin:0 0 16px;">A school/person submitted a We Brand Schools application using your referral link.</p>
-          <p style="margin:0 0 8px;"><strong>School/person:</strong> ${escapeHtml(schoolName)}</p>
-          <p style="margin:0 0 8px;"><strong>Selected template:</strong> ${escapeHtml(selectedTemplateName)}</p>
-          <p style="margin:0 0 8px;"><strong>Submitted:</strong> ${escapeHtml(
-            new Intl.DateTimeFormat("en-US", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            }).format(submittedAt),
-          )}</p>
-          <p style="margin:0 0 16px;"><strong>Referral:</strong> ${escapeHtml(referral.displayName)} (${escapeHtml(referralUrl)})</p>
-          <p style="margin:0;">We will notify you again when this school website goes live.</p>`,
+      email: createElement(ReferralUsedEmail, {
+        name: referral.displayName,
+        schoolName,
+        templateName: selectedTemplateName,
+        submitted: formatSubmitted(submittedAt),
+        referralUrl,
       }),
     });
 
@@ -251,23 +245,13 @@ async function notifySchoolApplicationSubmitted({
 
   for (const recipient of uniqueRecipients) {
     try {
-      await sendEmail({
+      await sendTemplate({
         to: recipient,
         subject,
-        htmlContent: buildRegularEmailHtml({
-          heading: "Your school website request was submitted",
-          body: `
-            <p style="margin:0 0 16px;">Hello,</p>
-            <p style="margin:0 0 16px;">Thank you. We have received your We Brand Schools application and our team will review it.</p>
-            <p style="margin:0 0 8px;"><strong>School/person:</strong> ${escapeHtml(schoolName)}</p>
-            <p style="margin:0 0 8px;"><strong>Selected template:</strong> ${escapeHtml(selectedTemplateName)}</p>
-            <p style="margin:0 0 16px;"><strong>Submitted:</strong> ${escapeHtml(
-              new Intl.DateTimeFormat("en-US", {
-                dateStyle: "medium",
-                timeStyle: "short",
-              }).format(submittedAt),
-            )}</p>
-            <p style="margin:0;">We will contact you if we need more information, and you will receive another update when the site goes live.</p>`,
+        email: createElement(SchoolApplicationReceivedEmail, {
+          schoolName,
+          templateName: selectedTemplateName,
+          submitted: formatSubmitted(submittedAt),
         }),
       });
     } catch (error) {

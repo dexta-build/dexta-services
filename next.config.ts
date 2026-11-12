@@ -26,6 +26,9 @@ function getCloudflareR2ImageRemotePattern() {
 const cloudflareR2ImageRemotePattern = getCloudflareR2ImageRemotePattern();
 
 const nextConfig: NextConfig = {
+  // Lets QA builds use a separate folder (NEXT_DIST_DIR=.next-qa) so they
+  // don't disturb a running dev server. Normal builds use .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
@@ -42,6 +45,19 @@ const nextConfig: NextConfig = {
         ? [cloudflareR2ImageRemotePattern]
         : []),
     ],
+  },
+  async redirects() {
+    return [
+      // The old portfolio page moved to /works. Query strings carry over,
+      // so /projects?tab=build lands on the Build filter.
+      { source: "/projects", destination: "/works", statusCode: 301 },
+      // The team now lives on the About page; profiles are at /[slug]
+      // (old /team/[slug] links redirect from src/app/(public)/team/[slug]).
+      { source: "/team", destination: "/about#team", statusCode: 301 },
+      // Devs Day has passed; events now live under /events.
+      { source: "/devs-day", destination: "/events", statusCode: 301 },
+      { source: "/dev-day", destination: "/events", statusCode: 301 },
+    ];
   },
   async headers() {
     return [

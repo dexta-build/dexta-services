@@ -1,8 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "tinymce/skins/ui/oxide/skin.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Don't generate CSS from the standalone Dexta Academy sites (static HTML
+   with their own styles) or anything in public/: they made the site's CSS
+   several times larger than it needs to be. */
+@source not "../../public";
+@source not "./**/dexta-academy-*/**";
 
 @theme inline {
   --color-primary: #00b2ff;
@@ -31,10 +34,71 @@
   --font-display: var(--font-clash-display), system-ui, sans-serif;
 }
 
+/* ==========================================================================
+   DEXTA SITE DESIGN SYSTEM (public pages rebuild)
+   New tokens live under their own names so the admin panel and
+   /webrandschools keep their current look until their own phase.
+   ========================================================================== */
+@theme {
+  /* Brand */
+  --color-brand: #000c99; /* Primary brand */
+  --color-brand-cyan: #00abff; /* Secondary brand */
+  --color-canvas: #f8f8f5; /* Primary background */
+  --color-royal: #00086b; /* Deep Royal */
+  --color-ocean: #007fc2; /* Ocean Blue */
+  --color-ocean-deep: #006aa3; /* Ocean for white text (WCAG AA) */
+  --color-ice: #e8f3ff; /* Ice Blue */
+  --color-charcoal: #202321;
+  --color-grey-muted: #737773;
+  /* Darker muted grey for small text on light surfaces (WCAG AA 4.5:1). */
+  --color-grey-text: #5d615d;
+
+  /* Accents: used for colour-blocked sections and catalogue identities */
+  --color-gold: #d4a340;
+  --color-gold-deep: #8a6414;
+  --color-gold-soft: #fbf3df;
+  --color-lilac: #a996f2;
+  --color-lilac-deep: #4b3a9e;
+  --color-lilac-soft: #f0ecff;
+  --color-coral: #ff7a5c;
+  --color-coral-deep: #a8361b;
+  --color-coral-soft: #ffe9e3;
+  --color-mint: #34c9a0;
+  --color-mint-deep: #0f6e55;
+  --color-mint-soft: #e1f7f0;
+  --color-stone: #8c8578;
+  --color-stone-deep: #4a453c;
+  --color-stone-soft: #efece6;
+
+  /* Type */
+  --font-mont: var(--font-mont-local), "Helvetica Neue", Arial, sans-serif;
+  --font-accent:
+    var(--font-instrument-serif), Georgia, "Times New Roman", serif;
+
+  /* Extra breakpoint used by the large-desktop layout (Superside uses 1650) */
+  --breakpoint-3xl: 103.125rem;
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* Section surfaces: a <Section surface="royal"> sets these and every
+   child (eyebrow, heading accent, buttons, rules) adapts automatically. */
+@theme inline {
+  --color-surface: var(--surface-bg);
+  --color-surface-fg: var(--surface-fg);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-accent: var(--surface-accent);
+  --color-surface-rule: var(--surface-rule);
+  --color-surface-card: var(--surface-card);
+  --color-cta: var(--surface-cta-bg);
+  --color-cta-fg: var(--surface-cta-fg);
+}
+
 :root {
   color-scheme: light;
   --radius: 0.625rem;
-  --perspective: 1200px;
   --primary-background: #050505;
   --primary-text: #050505;
   --background: #ffffff;
@@ -62,68 +126,10 @@
   --ring: #00b2ff;
 }
 
-.dark {
-  color-scheme: dark;
-  --background: #0f172a;
-  --foreground: #f1f5f9;
-  --card: #1e293b;
-  --card-foreground: #f1f5f9;
-  --popover: #1e293b;
-  --popover-foreground: #f1f5f9;
-  --primary: #00b2ff;
-  --primary-foreground: #0f172a;
-  --secondary: #64748b;
-  --secondary-foreground: #f1f5f9;
-  --muted: #334155;
-  --muted-foreground: #cbd5e1;
-  --accent: #00b2ff;
-  --accent-foreground: #0f172a;
-  --destructive: #f87171;
-  --destructive-foreground: #7f1d1d;
-  --border: #334155;
-  --input: #334155;
-  --ring: #00b2ff;
-}
-
 html,
 body {
   overflow-x: clip;
   max-width: 100%;
-}
-
-.hero-card-scroller {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.hero-card-scroller::-webkit-scrollbar {
-  display: none;
-}
-
-.we-brand-schools-testimonial-track {
-  animation: we-brand-schools-marquee var(--testimonial-duration, 32s) linear
-    infinite;
-  will-change: transform;
-}
-
-.group:hover .we-brand-schools-testimonial-track {
-  animation-play-state: paused;
-}
-
-@keyframes we-brand-schools-marquee {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .we-brand-schools-testimonial-track {
-    animation: none;
-  }
 }
 
 @layer base {
@@ -138,13 +144,563 @@ body {
   body[data-scroll-locked] {
     padding-right: 0 !important;
   }
+}
 
-  .perspective-3d {
-    perspective: var(--perspective);
-    transform-style: preserve-3d;
+/* ==========================================================================
+   DEXTA SITE: surfaces, type scale, motion utilities
+   ========================================================================== */
+
+[data-surface],
+.dx-site {
+  --surface-bg: var(--color-canvas);
+  --surface-fg: var(--color-charcoal);
+  --surface-muted: var(--color-grey-text);
+  --surface-accent: var(--color-brand);
+  --surface-rule: rgb(32 35 33 / 0.14);
+  --surface-card: var(--color-white);
+  --surface-cta-bg: var(--color-brand);
+  --surface-cta-fg: var(--color-white);
+}
+
+[data-surface="white"] {
+  --surface-bg: var(--color-white);
+  --surface-card: var(--color-canvas);
+}
+
+[data-surface="ice"] {
+  --surface-bg: var(--color-ice);
+  --surface-fg: var(--color-royal);
+  --surface-muted: rgb(0 8 107 / 0.66);
+  --surface-rule: rgb(0 8 107 / 0.16);
+}
+
+[data-surface="royal"] {
+  --surface-bg: var(--color-royal);
+  --surface-fg: var(--color-ice);
+  --surface-muted: rgb(232 243 255 / 0.7);
+  --surface-accent: var(--color-brand-cyan);
+  --surface-rule: rgb(232 243 255 / 0.18);
+  --surface-card: rgb(255 255 255 / 0.06);
+  --surface-cta-bg: var(--color-brand-cyan);
+  --surface-cta-fg: var(--color-royal);
+}
+
+[data-surface="brand"] {
+  --surface-bg: var(--color-brand);
+  --surface-fg: var(--color-white);
+  --surface-muted: rgb(255 255 255 / 0.74);
+  --surface-accent: var(--color-brand-cyan);
+  --surface-rule: rgb(255 255 255 / 0.2);
+  --surface-card: rgb(255 255 255 / 0.08);
+  --surface-cta-bg: var(--color-brand-cyan);
+  --surface-cta-fg: var(--color-royal);
+}
+
+[data-surface="ocean"] {
+  /* A deeper ocean so white text passes WCAG AA (4.5:1). */
+  --surface-bg: var(--color-ocean-deep);
+  --surface-fg: var(--color-white);
+  --surface-muted: rgb(255 255 255 / 0.88);
+  --surface-accent: var(--color-ice);
+  --surface-rule: rgb(255 255 255 / 0.24);
+  --surface-card: rgb(255 255 255 / 0.1);
+  --surface-cta-bg: var(--color-ice);
+  --surface-cta-fg: var(--color-royal);
+}
+
+[data-surface="gold"] {
+  --surface-bg: var(--color-gold-soft);
+  --surface-fg: var(--color-charcoal);
+  --surface-accent: var(--color-gold-deep);
+  --surface-rule: rgb(138 100 20 / 0.2);
+  --surface-cta-bg: var(--color-royal);
+}
+
+[data-surface="lilac"] {
+  --surface-bg: var(--color-lilac-soft);
+  --surface-fg: var(--color-charcoal);
+  --surface-accent: var(--color-lilac-deep);
+  --surface-rule: rgb(75 58 158 / 0.18);
+  --surface-cta-bg: var(--color-lilac-deep);
+}
+
+[data-surface="coral"] {
+  --surface-bg: var(--color-coral-soft);
+  --surface-fg: var(--color-charcoal);
+  --surface-accent: var(--color-coral-deep);
+  --surface-rule: rgb(168 54 27 / 0.18);
+  --surface-cta-bg: var(--color-royal);
+}
+
+[data-surface="mint"] {
+  --surface-bg: var(--color-mint-soft);
+  --surface-fg: var(--color-charcoal);
+  --surface-accent: var(--color-mint-deep);
+  --surface-rule: rgb(15 110 85 / 0.18);
+  --surface-cta-bg: var(--color-royal);
+}
+
+[data-surface="plum"] {
+  --surface-bg: var(--color-lilac-deep);
+  --surface-fg: var(--color-lilac-soft);
+  --surface-muted: rgb(240 236 255 / 0.82);
+  /* Light coral so small accent text passes AA on deep lilac. */
+  --surface-accent: #ffb4a3;
+  --surface-rule: rgb(240 236 255 / 0.22);
+  --surface-card: rgb(255 255 255 / 0.08);
+  --surface-cta-bg: var(--color-coral);
+  --surface-cta-fg: var(--color-royal);
+}
+
+[data-surface="forest"] {
+  --surface-bg: var(--color-mint-deep);
+  --surface-fg: var(--color-mint-soft);
+  --surface-muted: rgb(225 247 240 / 0.92);
+  /* Light mint so accent text passes AA on deep green. */
+  --surface-accent: #9ff0d2;
+  --surface-rule: rgb(225 247 240 / 0.22);
+  --surface-card: rgb(255 255 255 / 0.08);
+  --surface-cta-bg: var(--color-mint);
+  --surface-cta-fg: var(--color-royal);
+}
+
+[data-surface="stone"] {
+  --surface-bg: var(--color-stone-soft);
+  --surface-fg: var(--color-charcoal);
+  --surface-accent: var(--color-stone-deep);
+  --surface-rule: rgb(74 69 60 / 0.18);
+  --surface-cta-bg: var(--color-charcoal);
+}
+
+/* In the components layer so utilities like bg-surface can override it. */
+@layer components {
+  .dx-site {
+    font-family: var(--font-mont);
+    background-color: var(--color-canvas);
+    color: var(--color-charcoal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
+}
 
-  .preserve-3d {
-    transform-style: preserve-3d;
+/* Headline accent: <em> inside any heading becomes Instrument Serif italic.
+   In the components layer so a utility (e.g. [&_em]:text-current) can recolour it. */
+@layer components {
+  .dx-heading em,
+  .dx-accent {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.08em;
+    letter-spacing: -0.005em;
+    color: var(--surface-accent);
+  }
+}
+
+/* Article body for /thoughts/[slug] (rich text from the admin). */
+@layer components {
+  .dx-article {
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--surface-fg);
+  }
+  @media (min-width: 768px) {
+    .dx-article {
+      font-size: 1.0625rem;
+    }
+  }
+  .dx-article > * + * {
+    margin-top: 1.25em;
+  }
+  .dx-article h2 {
+    margin-top: 2.2em;
+    font-size: 1.625rem;
+    line-height: 1.2;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    scroll-margin-top: 6rem;
+  }
+  .dx-article h3 {
+    margin-top: 1.8em;
+    font-size: 1.25rem;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+  .dx-article h4 {
+    margin-top: 1.6em;
+    font-weight: 700;
+  }
+  @media (min-width: 768px) {
+    .dx-article h2 {
+      font-size: 2rem;
+    }
+  }
+  .dx-article :is(h2, h3, h4) em {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.08em;
+    color: var(--surface-accent);
+  }
+  .dx-article a {
+    color: var(--color-brand);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .dx-article a:hover {
+    text-decoration-thickness: 2px;
+  }
+  .dx-article :is(ul, ol) {
+    padding-left: 1.25em;
+  }
+  .dx-article ul {
+    list-style: disc;
+  }
+  .dx-article ol {
+    list-style: decimal;
+  }
+  .dx-article li + li {
+    margin-top: 0.4em;
+  }
+  .dx-article li::marker {
+    color: var(--surface-accent);
+  }
+  .dx-article blockquote {
+    margin-top: 2em;
+    margin-bottom: 2em;
+    border-left: 3px solid var(--color-brand-cyan);
+    padding: 0.25em 0 0.25em 1.25em;
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-size: 1.5em;
+    line-height: 1.35;
+  }
+  .dx-article img,
+  .dx-article iframe {
+    width: 100%;
+    border-radius: 10px;
+  }
+  .dx-article iframe {
+    aspect-ratio: 16 / 9;
+    height: auto;
+  }
+  .dx-article figcaption {
+    margin-top: 0.5em;
+    font-size: 0.8125rem;
+    color: var(--surface-muted);
+  }
+  .dx-article hr {
+    border-color: var(--surface-rule);
+    margin: 2.5em 0;
+  }
+  .dx-article code {
+    border-radius: 4px;
+    background: rgb(0 12 153 / 0.07);
+    padding: 0.1em 0.35em;
+    font-size: 0.9em;
+  }
+  .dx-article pre {
+    overflow-x: auto;
+    border-radius: 10px;
+    background: var(--color-charcoal);
+    color: #f8f8f5;
+    padding: 1.25em;
+    font-size: 0.875rem;
+  }
+  .dx-article pre code {
+    background: none;
+    padding: 0;
+  }
+  /* Article editor (admin): placeholder, selected image/video, video block */
+  .dx-article.ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: var(--surface-muted);
+  }
+  .dx-article.ProseMirror .ProseMirror-selectednode {
+    outline: 3px solid var(--color-brand-cyan);
+    outline-offset: 3px;
+    border-radius: 10px;
+  }
+  .dx-article.ProseMirror .dx-editor-embed {
+    cursor: grab;
+  }
+  /* Email editor: spacing and size as the email will show them */
+  .dx-article.dx-email-body {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .dx-article.dx-email-body > * + * {
+    margin-top: 0.85em;
+  }
+  .dx-article.dx-email-body h2 {
+    margin-top: 1.3em;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .dx-article.dx-email-body blockquote {
+    font-size: 1em;
+    margin: 0.85em 0;
+  }
+  /* Formatting editor (admin): styled copy for We Brand Schools */
+  .dx-formatted {
+    color: #1f2937;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  .dx-formatted p {
+    margin: 0 0 0.85rem;
+  }
+  .dx-formatted > :last-child {
+    margin-bottom: 0;
+  }
+  .dx-formatted :is(h1, h2, h3, h4) {
+    color: #111827;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.75rem;
+  }
+  .dx-formatted h1 {
+    font-size: 2rem;
+  }
+  .dx-formatted h2 {
+    font-size: 1.6rem;
+  }
+  .dx-formatted h3 {
+    font-size: 1.3rem;
+  }
+  .dx-formatted h4 {
+    font-size: 1.1rem;
+  }
+  .dx-formatted :is(ul, ol) {
+    margin: 0 0 0.85rem 1.25rem;
+    padding: 0;
+  }
+  .dx-formatted ul {
+    list-style: disc;
+  }
+  .dx-formatted ol {
+    list-style: decimal;
+  }
+  .dx-formatted blockquote {
+    border-left: 3px solid #0284c7;
+    color: #374151;
+    margin: 0 0 0.85rem;
+    padding-left: 1rem;
+  }
+  .dx-formatted a {
+    color: #0369a1;
+    text-decoration: underline;
+  }
+  .dx-formatted.ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: var(--surface-muted);
+  }
+  .dx-article table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+  .dx-article :is(th, td) {
+    border-bottom: 1px solid var(--surface-rule);
+    padding: 0.6em 0.5em;
+    text-align: left;
+  }
+}
+
+/* Type scale, mobile first. Measured against Superside at
+   390 / 768 / 1280 / 1650 and adjusted for Mont's wider letterforms. */
+@utility text-display {
+  font-size: 2.5rem;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  @media (width >= 48rem) {
+    font-size: 3.5rem;
+  }
+  @media (width >= 80rem) {
+    font-size: 4.25rem;
+  }
+  @media (width >= 103.125rem) {
+    font-size: 5.25rem;
+  }
+}
+
+@utility text-h1 {
+  font-size: 2rem;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  @media (width >= 48rem) {
+    font-size: 2.75rem;
+  }
+  @media (width >= 80rem) {
+    font-size: 3.25rem;
+  }
+}
+
+@utility text-h2 {
+  font-size: 1.625rem;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  @media (width >= 48rem) {
+    font-size: 2rem;
+  }
+  @media (width >= 80rem) {
+    font-size: 2.375rem;
+  }
+}
+
+@utility text-h3 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  @media (width >= 48rem) {
+    font-size: 1.375rem;
+  }
+}
+
+@utility text-lead {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  @media (width >= 80rem) {
+    font-size: 1.1875rem;
+  }
+}
+
+@utility text-eyebrow {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@utility text-stat {
+  font-family: var(--font-accent);
+  font-size: 3.5rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  @media (width >= 80rem) {
+    font-size: 4.5rem;
+  }
+}
+
+/* Marquee (horizontal + vertical). Duration is set inline per instance. */
+@keyframes dx-marquee-x {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes dx-marquee-y {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+.dx-marquee-track {
+  animation: var(--marquee-name, dx-marquee-x) var(--marquee-duration, 40s)
+    linear infinite;
+  animation-direction: var(--marquee-direction, normal);
+  will-change: transform;
+}
+
+.dx-marquee[data-pause-on-hover="true"]:hover .dx-marquee-track {
+  animation-play-state: paused;
+}
+
+/* Wider edge fade for logo rows, like Superside's. */
+.dx-mask-x-wide {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 16%,
+    #000 84%,
+    transparent
+  );
+}
+
+.dx-mask-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
+}
+
+.dx-mask-y {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+}
+
+/* Animated underline used for text links */
+.dx-link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0% 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.4s var(--ease-out-expo);
+}
+
+.dx-link:hover,
+.dx-link:focus-visible {
+  background-size: 100% 1px;
+}
+
+.dx-no-scrollbar {
+  scrollbar-width: none;
+}
+
+.dx-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dx-marquee-track {
+    animation: none;
+  }
+}
+
+/* Elements that show the cursor bubble hide the native pointer on
+   mouse-driven devices only. */
+@media (hover: hover) and (pointer: fine) {
+  [data-cursor] {
+    cursor: none;
+  }
+}
+
+/* Dashes that flow along a connector line (path with pathLength="1"). */
+@keyframes dx-dash-flow {
+  to {
+    stroke-dashoffset: -0.12;
+  }
+}
+
+.dx-dash-flow {
+  stroke-dasharray: 0.02 0.04;
+  animation: dx-dash-flow 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dx-dash-flow {
+    animation: none;
   }
 }

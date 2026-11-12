@@ -49,14 +49,8 @@ describe("Dexta Academy 3 manifest", () => {
       (section) => section.id === "gallery-grid",
     );
 
-    assert.match(
-      String(hero?.fields.skyImage),
-      /ChatGPT_Image_Apr_22_2026_03_04_47_PM_szdmih\.png/,
-    );
-    assert.match(
-      String(hero?.fields.studentImage),
-      /Untitled_design_2_onazpj\.png/,
-    );
+    assert.match(String(hero?.fields.skyImage), /hero-bg_cwzvwm\.png/);
+    assert.match(String(hero?.fields.studentImage), /hero-image_r50mkt\.png/);
     assert.equal(hero?.fields.headlineTextColor, "#ffffff");
     assert.equal(hero?.fields.joyfulAccentColor, "#ffc94c");
     assert.equal(hero?.fields.boldAccentColor, "#ffc94c");
@@ -84,7 +78,7 @@ describe("Dexta Academy 3 manifest", () => {
     );
     assert.match(
       String(programmes?.repeatable?.items[0]?.programmeImage),
-      /ChatGPT_Image/,
+      /programme1_szfzez\.png/,
     );
     assert.match(
       String(howToApply?.fields.primaryCtaText),
@@ -134,7 +128,7 @@ describe("Dexta Academy 3 manifest", () => {
     assert.equal(galleryGrid?.repeatable?.items[0]?.cardShadowOpacity, 4);
     assert.match(
       String(galleryGrid?.repeatable?.items[0]?.image),
-      /ChatGPT_Image_Apr_24_2026_06_38_15_PM_ioqvmr\.png/,
+      /g2_h1vdiy\.png/,
     );
   });
 
@@ -339,7 +333,7 @@ describe("Dexta Academy 3 manifest", () => {
     );
     assert.match(
       html,
-      /<a class="portal-link button" href="\/portal" style="display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;padding:12px 18px!important;border-radius:999px!important;font-weight:700!important;text-decoration:none!important;background:#031225!important;background-color:#031225!important;background-image:none!important;color:#fff7df!important;border:2px solid #fff7df!important;font-family:&quot;Montserrat&quot;,&quot;Segoe UI&quot;,sans-serif!important;">Family Portal<\/a>/,
+      /<a class="portal-link" href="\/portal" style="display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;padding:12px 18px!important;border-radius:999px!important;font-weight:700!important;text-decoration:none!important;background:#031225!important;background-color:#031225!important;background-image:none!important;color:#fff7df!important;border:2px solid #fff7df!important;font-family:&quot;Montserrat&quot;,&quot;Segoe UI&quot;,sans-serif!important;">Family Portal<\/a>/,
     );
     assert.match(
       html,
@@ -961,13 +955,14 @@ describe("Dexta Academy 3 manifest", () => {
 
     assert.match(
       html,
-      /src="https:\/\/res\.cloudinary\.com\/dxoorukfj\/image\/upload\/v1776866714\/ChatGPT_Image_Apr_22_2026_03_04_47_PM_szdmih\.png"/,
+      /src="https:\/\/res\.cloudinary\.com\/djyarsuk6\/image\/upload\/v1781002181\/hero-bg_cwzvwm\.png"/,
     );
     assert.match(
       html,
-      /src="https:\/\/res\.cloudinary\.com\/dxoorukfj\/image\/upload\/v1776867733\/Untitled_design_2_onazpj\.png"/,
+      /src="https:\/\/res\.cloudinary\.com\/djyarsuk6\/image\/upload\/v1781002323\/hero-image_r50mkt\.png"/,
     );
-    assert.doesNotMatch(html, /data-original-src/);
+    // The shared preview script mentions it; Template 3 images keep their src.
+    assert.doesNotMatch(html, /<img\b[^>]*data-original-src=/);
     assert.match(html, /hero__segment hero__segment--drop-top hero__step-3/);
     assert.match(html, /hero__accent hero__accent--fade hero__accent--joyful/);
     assert.match(html, /hero__segment hero__segment--drop-bottom hero__step-4/);
@@ -1166,7 +1161,7 @@ describe("Dexta Academy 3 manifest", () => {
     assertPreviewHtml(html);
 
     assert.match(html, /<base href="\/dexta-academy-3\/">/);
-    assert.match(html, /DXT Academy \| Joyful Learning for Bold Young Minds/);
+    assert.match(html, /<title>DXT Academy<\/title>/);
     assert.doesNotMatch(html, /<base href="\/dexta-academy-2\/">/);
   });
 

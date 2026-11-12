@@ -1047,7 +1047,12 @@ function getFieldValueFromNode(
   }
 
   if (target === "innerHTML") {
-    return node.children.map(serializeTemplateNode).join("").trim();
+    const html = node.children.map(serializeTemplateNode).join("").trim();
+    // Line breaks and indentation from the source file aren't content
+    // (browsers collapse them), so they shouldn't reach the editor.
+    return /<(pre|textarea|script|style)\b/i.test(html)
+      ? html
+      : html.replace(/\s+/g, " ");
   }
 
   if (target === "textContent") {

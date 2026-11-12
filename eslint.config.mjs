@@ -8,6 +8,10 @@ export default defineConfig([
   {
     ignores: [
       ".next/**",
+      // QA build folders and browser-testing output (screenshots, scripts).
+      ".next-qa/**",
+      ".next-qa-dev/**",
+      ".playwright-mcp/**",
       "out/**",
       "build/**",
       "node_modules/**",
@@ -45,7 +49,17 @@ export default defineConfig([
         HTMLFormElement: "readonly",
         HTMLParagraphElement: "readonly",
         HTMLHeadingElement: "readonly",
+        HTMLAnchorElement: "readonly",
+        HTMLSpanElement: "readonly",
+        HTMLVideoElement: "readonly",
+        HTMLOListElement: "readonly",
         MouseEvent: "readonly",
+        KeyboardEvent: "readonly",
+        PointerEvent: "readonly",
+        WheelEvent: "readonly",
+        requestAnimationFrame: "readonly",
+        cancelAnimationFrame: "readonly",
+        Element: "readonly",
         Event: "readonly",
         window: "readonly",
         document: "readonly",

@@ -114,7 +114,7 @@ describe("school template loading theme", () => {
     assert.equal(synced.contentJson.theme.loadingLogoHeight, 64);
   });
 
-  it("keeps Template 5 backed by a real loading page element", async () => {
+  it("renders Template 5 without a loading screen (removed from the template)", async () => {
     const manifest = schoolTemplateManifests.find(
       (item) => item.templateSlug === "dexta-academy-5",
     );
@@ -128,7 +128,8 @@ describe("school template loading theme", () => {
     });
 
     assert.ok(html, "Expected Template 5 home preview HTML.");
-    assert.match(html, /data-site-loader/);
-    assert.match(html, /site-loader__mark/);
+    // Shared theme CSS still names .site-loader__mark; no element uses it.
+    assert.doesNotMatch(html, /data-site-loader/);
+    assert.doesNotMatch(html, /<[a-z]+[^>]*class="site-loader[\s"]/);
   });
 });
