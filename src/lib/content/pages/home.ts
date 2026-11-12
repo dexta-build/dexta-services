@@ -36,7 +36,7 @@ import { closingSection } from "./shared";
 /**
  * Content from the old homepage tables, used until a section is first
  * published. Cached with the old admin's tags, so it costs no database
- * work per visit and still follows edits made in the old screens.
+ * work per visit and still follows edits made in the old screens. old screen were removed.
  */
 const legacy = <T>(key: string, tag: string, load: () => Promise<T>) => {
   const cached = unstable_cache(load, [`home-legacy-${key}`], {
