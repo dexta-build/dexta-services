@@ -8,7 +8,15 @@ import { MediaAsset } from "../media-asset";
 import type { WorkProject } from "@/lib/site/works-data";
 
 /** "More work": edge-to-edge tiles linking to other project pages. */
-export function MoreWorks({ works }: { works: WorkProject[] }) {
+export function MoreWorks({
+  works,
+  eyebrow = "Keep exploring",
+  title = "More *of our work*",
+}: {
+  works: WorkProject[];
+  eyebrow?: string | null;
+  title?: string;
+}) {
   if (works.length === 0) return null;
   return (
     <section
@@ -16,9 +24,9 @@ export function MoreWorks({ works }: { works: WorkProject[] }) {
       className="bg-surface text-surface-fg pt-16 md:pt-24"
     >
       <Container className="flex flex-col gap-4 pb-8 md:pb-10">
-        <Eyebrow>Keep exploring</Eyebrow>
+        {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
         <Heading size="h1">
-          <AccentText text="More *of our work*" />
+          <AccentText text={title} />
         </Heading>
       </Container>
       <div className="grid md:grid-cols-2">

@@ -11,17 +11,21 @@ import { MediaAsset } from "../media-asset";
 import { Countdown, useNow } from "../offers/countdown";
 import { EventCard, eventHref, eventImage, shortDate } from "./event-card";
 import type { EventSummary } from "@/lib/site/events-data";
+import {
+  EVENTS_BOARD_LABELS,
+  type EventsBoardLabels,
+} from "@/lib/site/event-labels";
 
 const PAGE_SIZE = 9;
 
 export type EventFilter = "all" | "upcoming" | "past" | "in-person" | "online";
 
-const FILTERS: { key: EventFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "upcoming", label: "Upcoming" },
-  { key: "past", label: "Past" },
-  { key: "in-person", label: "In person" },
-  { key: "online", label: "Online" },
+const FILTERS: { key: EventFilter; label: keyof EventsBoardLabels }[] = [
+  { key: "all", label: "filterAll" },
+  { key: "upcoming", label: "filterUpcoming" },
+  { key: "past", label: "filterPast" },
+  { key: "in-person", label: "filterInPerson" },
+  { key: "online", label: "filterOnline" },
 ];
 
 /**
@@ -33,10 +37,12 @@ export function EventsBoard({
   events,
   serverNow,
   initialFilter,
+  labels: L = EVENTS_BOARD_LABELS,
 }: {
   events: EventSummary[];
   serverNow: number;
   initialFilter: EventFilter;
+  labels?: EventsBoardLabels;
 }) {
   const now = useNow() ?? serverNow;
   const [filter, setFilter] = useState<EventFilter>(initialFilter);
@@ -82,6 +88,7 @@ export function EventsBoard({
               event={e}
               wide={featured.length === 1}
               priority={i === 0}
+              startsIn={L.startsIn}
             />
           ))}
         </div>
@@ -92,10 +99,9 @@ export function EventsBoard({
             className="bg-surface text-surface-fg flex flex-col items-center gap-3 rounded-[10px] px-6 py-12 text-center"
           >
             <CalendarDays aria-hidden className="size-8" />
-            <p className="text-h3">No upcoming events right now</p>
+            <p className="text-h3">{L.noUpcomingTitle}</p>
             <p className="text-surface-muted max-w-md text-sm leading-relaxed">
-              New events are announced here first. Browse past events below or
-              follow us on social media to hear about the next one.
+              {L.noUpcomingBody}
             </p>
           </div>
         </Container>
@@ -113,7 +119,7 @@ export function EventsBoard({
             className="text-center"
             id="all-events-title"
           >
-            All events
+            {L.allTitle}
           </Heading>
           <div
             role="group"
@@ -136,20 +142,25 @@ export function EventsBoard({
                     : "border-surface-fg/20 hover:border-surface-fg",
                 )}
               >
-                {f.label}
+                {L[f.label]}
               </button>
             ))}
           </div>
 
           {filtered.length === 0 ? (
             <p className="text-surface-muted border-surface-rule rounded-[10px] border border-dashed px-6 py-14 text-center">
-              No events here yet.
+              {L.empty}
             </p>
           ) : (
             <>
               <div className="grid gap-x-6 gap-y-12 md:grid-cols-2 xl:grid-cols-3">
                 {filtered.slice(0, shown).map((e) => (
-                  <EventCard key={e.id} event={e} past={isPast(e)} />
+                  <EventCard
+                    key={e.id}
+                    event={e}
+                    past={isPast(e)}
+                    endedLabel={L.ended}
+                  />
                 ))}
               </div>
               {filtered.length > shown && (
@@ -158,7 +169,7 @@ export function EventsBoard({
                     variant="outline"
                     onClick={() => setShown((n) => n + PAGE_SIZE)}
                   >
-                    Load more
+                    {L.loadMore}
                   </Button>
                 </div>
               )}
@@ -175,10 +186,12 @@ function FeaturedTile({
   event,
   wide,
   priority,
+  startsIn,
 }: {
   event: EventSummary;
   wide: boolean;
   priority: boolean;
+  startsIn: string;
 }) {
   return (
     <Link
@@ -208,7 +221,7 @@ function FeaturedTile({
           </span>
           <span className="border-surface-fg/40 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold">
             <Clock aria-hidden className="size-3.5" />
-            Starts in <Countdown endsAt={event.dateTime} compact />
+            {startsIn} <Countdown endsAt={event.dateTime} compact />
           </span>
           {event.sample && (
             <span className="bg-surface-fg/15 rounded-full px-2.5 py-1 text-[0.6875rem] font-bold">

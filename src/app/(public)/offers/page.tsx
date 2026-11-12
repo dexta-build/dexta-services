@@ -18,18 +18,18 @@ import { RevealGroup, RevealItem } from "@/components/site/reveal";
 import { Section } from "@/components/site/section";
 import { FaqSection } from "@/components/site/services/faq-section";
 import { getHomeData } from "@/lib/site/home-data";
-import { OFFERS_PAGE } from "@/lib/site/offers-content";
 import { getOffers, notEnded } from "@/lib/site/offers-data";
+import { OFFERS_PAGE_CONTENT } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import { getWhatsApp } from "@/lib/content/site-settings";
+import { loadPage } from "@/lib/content/store";
 import { getWhatsAppHref } from "@/lib/site/page-context";
 import { getRates } from "@/lib/site/rates";
 import { stock } from "@/lib/site/stock-media";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/offers" },
-  title: "Offers",
-  description:
-    "Ready-made offers from Dexta across design, software and print, at a clear price. Pay online or order on WhatsApp.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(OFFERS_PAGE_CONTENT);
+}
 
 type Search = Record<string, string | string[] | undefined>;
 
@@ -45,9 +45,10 @@ export default async function OffersPage({
       getRates(),
       getHomeData(),
       getWhatsAppHref(),
-      getWhatsAppHref("Hello Dexta, I'd like to ask about your offers."),
+      getWhatsApp("offers"),
     ]);
-  const { hero, offers: intro, includes, faqs, closing } = OFFERS_PAGE;
+  const { data: c, hidden } = await loadPage(OFFERS_PAGE_CONTENT);
+  const { hero, intro, includes } = c;
   const serverNow = Date.now();
   // Development only: /offers?preview=empty shows the empty state.
   const previewEmpty =
@@ -107,52 +108,53 @@ export default async function OffersPage({
               </div>
               <div className="flex flex-col gap-2 md:items-end">
                 <span className="text-surface-muted text-sm">
-                  Show prices in
+                  {intro.currencyLabel}
                 </span>
                 <CurrencySwitcher />
               </div>
             </div>
 
             {previewEmpty ? (
-              <NoOffers whatsappBase={whatsappBase} />
+              <NoOffers whatsappBase={whatsappBase} labels={c.empty} />
             ) : (
               <OffersGrid
                 offers={notEnded(offers, serverNow)}
                 serverNow={serverNow}
                 whatsappBase={whatsappBase}
+                labels={c.cards}
+                emptyLabels={c.empty}
               />
             )}
 
             {/* Every offer includes */}
-            <div className="mx-auto mt-20 max-w-5xl md:mt-28">
-              <h2 className="text-h3 mb-8 text-center md:mb-10">
-                {includes.title}
-              </h2>
-              <RevealGroup className="grid md:grid-cols-2 md:gap-x-12">
-                {includes.items.map((item) => (
-                  <RevealItem
-                    key={item}
-                    className="border-surface-rule flex items-center justify-between gap-4 border-b py-4 text-sm md:text-base"
-                  >
-                    {item}
-                    <Check aria-hidden className="size-4 shrink-0" />
-                  </RevealItem>
-                ))}
-              </RevealGroup>
-            </div>
+            {!hidden.includes && (
+              <div className="mx-auto mt-20 max-w-5xl md:mt-28">
+                <h2 className="text-h3 mb-8 text-center md:mb-10">
+                  {includes.title}
+                </h2>
+                <RevealGroup className="grid md:grid-cols-2 md:gap-x-12">
+                  {includes.items.map((item) => (
+                    <RevealItem
+                      key={item}
+                      className="border-surface-rule flex items-center justify-between gap-4 border-b py-4 text-sm md:text-base"
+                    >
+                      {item}
+                      <Check aria-hidden className="size-4 shrink-0" />
+                    </RevealItem>
+                  ))}
+                </RevealGroup>
+              </div>
+            )}
           </Container>
         </Section>
 
         <StatsBand />
 
-        <FaqSection title="Questions about *offers*" faqs={faqs} />
+        {!hidden.faq && <FaqSection title={c.faq.title} faqs={c.faq.items} />}
 
-        <ClosingCta
-          title={closing.title}
-          body={closing.body}
-          image={stock(closing.image, 2000)}
-          whatsappHref={ctaWhatsapp}
-        />
+        {!hidden.closing && (
+          <ClosingCta content={c.closing} whatsappHref={ctaWhatsapp} />
+        )}
       </main>
     </CurrencyProvider>
   );

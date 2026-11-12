@@ -20,6 +20,9 @@ type ServicePageTemplateProps = {
   brands: HomeBrand[];
   whatsappHref: string | null;
   related?: { title: string; items: Offering[] };
+  /** Sections hidden in the admin. */
+  hidden?: Record<string, boolean>;
+  faqTitle?: string;
 };
 
 /**
@@ -33,6 +36,8 @@ export function ServicePageTemplate({
   brands,
   whatsappHref,
   related,
+  hidden = {},
+  faqTitle,
 }: ServicePageTemplateProps) {
   return (
     <main className="dx-site">
@@ -42,27 +47,31 @@ export function ServicePageTemplate({
         whatsappHref={whatsappHref}
       />
       <LogoStrip brands={brands} />
-      <ProblemSplit {...page.problem} />
-      <TrustStats {...page.trust} />
-      <OfferingsBento {...page.offerings} />
-      {page.techStack && <TechStack {...page.techStack} />}
-      <UseCases {...page.useCases} />
-      <QualityCard {...page.quality} />
-      <ProcessTimeline {...page.process} />
-      <ClosingCta
-        variant="card"
-        title={page.closing.title}
-        body={page.closing.body}
-        image={stock(page.closing.image, 1800, 900)}
-        whatsappHref={whatsappHref}
-      />
+      {!hidden.problem && <ProblemSplit {...page.problem} />}
+      {!hidden.trust && <TrustStats {...page.trust} />}
+      {!hidden.offerings && <OfferingsBento {...page.offerings} />}
+      {page.techStack && !hidden.techStack && <TechStack {...page.techStack} />}
+      {!hidden.useCases && <UseCases {...page.useCases} />}
+      {!hidden.quality && <QualityCard {...page.quality} />}
+      {!hidden.process && <ProcessTimeline {...page.process} />}
+      {!hidden.closing && (
+        <ClosingCta
+          variant="card"
+          title={page.closing.title}
+          body={page.closing.body}
+          image={stock(page.closing.image, 1800, 900)}
+          whatsappHref={whatsappHref}
+        />
+      )}
       {related && (
         <RelatedServices title={related.title} items={related.items} />
       )}
-      <FaqSection
-        title={`Your *${page.shortName}* questions, answered`}
-        faqs={page.faqs}
-      />
+      {!hidden.faq && (
+        <FaqSection
+          title={faqTitle ?? `Your *${page.shortName}* questions, answered`}
+          faqs={page.faqs}
+        />
+      )}
     </main>
   );
 }

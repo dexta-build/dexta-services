@@ -12,7 +12,7 @@ import { Eyebrow } from "../eyebrow";
 import { Heading } from "../heading";
 import { NavIcon } from "../shell/nav-icon";
 import { HOME_CATALOGUE } from "@/lib/site/home-content";
-import { CATALOGUES, type CatalogueLink } from "@/lib/site/navigation";
+import type { ShowcaseCatalogue } from "@/lib/site/catalogue-data";
 
 /** Tile heights for a Pinterest-style rhythm in the preview grid. */
 const TILE_RATIOS = [
@@ -27,16 +27,20 @@ const TILE_RATIOS = [
 /**
  * "Pick a catalogue": tabs across the top; the section takes on the chosen
  * catalogue's colour, and a preview grid shows its categories.
- * Thumbnails are placeholders until catalogue media comes from the admin.
+ * Catalogues (and which show here) come from the Catalogues screen; each
+ * tile is a category with the first image of a design in it.
  */
-export function CatalogueShowcase() {
-  const [active, setActive] = useState<CatalogueLink>(CATALOGUES[0]);
-  const pool = CATALOGUES.map((c) => c.image);
-  const startAt = Math.max(0, pool.indexOf(active.image));
-  const tiles = active.categories.slice(0, 6).map((name, i) => ({
-    name,
-    image: pool[(startAt + i) % pool.length],
-  }));
+export function CatalogueShowcase({
+  catalogues,
+  content = HOME_CATALOGUE,
+}: {
+  catalogues: ShowcaseCatalogue[];
+  content?: typeof HOME_CATALOGUE & { buttonLabel?: string };
+}) {
+  const [activeSlug, setActiveSlug] = useState(catalogues[0]?.slug);
+  const active = catalogues.find((c) => c.slug === activeSlug) ?? catalogues[0];
+  if (!active) return null;
+  const tiles = active.tiles.filter((t) => t.image);
 
   return (
     <section
@@ -46,12 +50,12 @@ export function CatalogueShowcase() {
       <Container>
         <div className="grid gap-8 xl:grid-cols-[1fr_1.4fr] xl:gap-16">
           <div className="flex min-w-0 flex-col gap-5">
-            <Eyebrow rule>{HOME_CATALOGUE.eyebrow}</Eyebrow>
+            <Eyebrow rule>{content.eyebrow}</Eyebrow>
             <Heading size="h1">
-              <AccentText text={HOME_CATALOGUE.title} />
+              <AccentText text={content.title} />
             </Heading>
             <p className="text-surface-muted max-w-md leading-relaxed">
-              {HOME_CATALOGUE.body}
+              {content.body}
             </p>
 
             <div
@@ -59,7 +63,7 @@ export function CatalogueShowcase() {
               aria-label="Catalogues"
               className="dx-no-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0"
             >
-              {CATALOGUES.map((c) => {
+              {catalogues.map((c) => {
                 const selected = c.slug === active.slug;
                 return (
                   <button
@@ -67,7 +71,7 @@ export function CatalogueShowcase() {
                     type="button"
                     role="tab"
                     aria-selected={selected}
-                    onClick={() => setActive(c)}
+                    onClick={() => setActiveSlug(c.slug)}
                     className={cn(
                       "inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm whitespace-nowrap transition-colors",
                       selected
@@ -84,7 +88,9 @@ export function CatalogueShowcase() {
 
             <div className="mt-2 hidden xl:block">
               <Button href={active.href} size="lg" arrow>
-                Explore the {active.title} catalogue
+                {(
+                  content.buttonLabel ?? "Explore the {catalogue} catalogue"
+                ).replace("{catalogue}", active.title)}
               </Button>
             </div>
           </div>
@@ -125,7 +131,9 @@ export function CatalogueShowcase() {
             </AnimatePresence>
             <div className="mt-6 xl:hidden">
               <Button href={active.href} size="lg" block="mobile" arrow>
-                Explore the {active.title} catalogue
+                {(
+                  content.buttonLabel ?? "Explore the {catalogue} catalogue"
+                ).replace("{catalogue}", active.title)}
               </Button>
             </div>
           </div>

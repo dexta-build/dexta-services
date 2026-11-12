@@ -12,26 +12,18 @@ import { MediaAsset } from "@/components/site/media-asset";
 import { Reveal, RevealGroup, RevealItem } from "@/components/site/reveal";
 import { Section } from "@/components/site/section";
 import { TeamCarousel } from "@/components/site/team/team-carousel";
-import {
-  fetchAboutExpertiseItems,
-  fetchAboutMilestones,
-  fetchAboutPageContent,
-  fetchAboutSpaceItems,
-  fetchAboutValueItems,
-} from "@/lib/api";
+import type { AboutIconKey } from "@/lib/about-defaults";
+import { ABOUT_PAGE } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import { getWhatsApp } from "@/lib/content/site-settings";
+import { loadPage } from "@/lib/content/store";
 import { getHomeData } from "@/lib/site/home-data";
 import { imageUrl } from "@/lib/site/media";
-import { getWhatsAppHref } from "@/lib/site/page-context";
 import { STOCK, stock } from "@/lib/site/stock-media";
 import { getTeam } from "@/lib/site/team-data";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const content = await fetchAboutPageContent();
-  return {
-    alternates: { canonical: "/about" },
-    title: "About us",
-    description: content.heroBody,
-  };
+  return pageMetadata(ABOUT_PAGE);
 }
 
 /** Stand-in photos while studio images are missing. */
@@ -48,17 +40,35 @@ const SPACE_FALLBACKS = [
  * space, testimonials and a closing call to action.
  */
 export default async function AboutPage() {
-  const [content, milestones, expertise, values, space, team, home, whatsapp] =
-    await Promise.all([
-      fetchAboutPageContent(),
-      fetchAboutMilestones(),
-      fetchAboutExpertiseItems(),
-      fetchAboutValueItems(),
-      fetchAboutSpaceItems(),
-      getTeam(),
-      getHomeData(),
-      getWhatsAppHref("Hello Dexta, I'd like to talk about a project."),
-    ]);
+  const [{ data: c, hidden }, team, home, whatsapp] = await Promise.all([
+    loadPage(ABOUT_PAGE),
+    getTeam(),
+    getHomeData(),
+    getWhatsApp("about"),
+  ]);
+  // Each section edits part of the page; the layout below reads them as one.
+  const content = {
+    ...c.hero,
+    heroBackgroundImagePublicId: c.hero.heroBackgroundImagePublicId || null,
+    ...c.story,
+    ...c.expertise,
+    ...c.team,
+    ...c.values,
+    ...c.space,
+    ...c.closing,
+  };
+  const visible = <T extends { isVisible: boolean }>(items: T[]) =>
+    items.filter((i) => i.isVisible);
+  const milestones = hidden.journey ? [] : visible(c.journey.items);
+  const expertise = hidden.expertise ? [] : visible(c.expertise.items);
+  const values = hidden.values ? [] : visible(c.values.items);
+  const space = hidden.space
+    ? []
+    : visible(c.space.items).map((i) => ({
+        ...i,
+        mediaPublicId: i.mediaPublicId || null,
+        thumbnailPublicId: i.thumbnailPublicId || null,
+      }));
 
   const stats = [
     [content.heroStat1Value, content.heroStat1Label],
@@ -96,9 +106,11 @@ export default async function AboutPage() {
           </div>
           <div className="flex flex-col items-start gap-6">
             <p className="text-lead text-surface-fg/80">{content.heroBody}</p>
-            <Button href="/contact" size="lg" arrow>
-              Talk to us
-            </Button>
+            {content.heroButton?.label && content.heroButton.href && (
+              <Button href={content.heroButton.href} size="lg" arrow>
+                {content.heroButton.label}
+              </Button>
+            )}
           </div>
         </Container>
         <div className="relative h-[16rem] w-full md:h-[24rem] lg:h-[30rem]">
@@ -113,82 +125,89 @@ export default async function AboutPage() {
       </Section>
 
       {/* Statement */}
-      <section className="bg-canvas pt-16 md:pt-24 lg:pt-32">
-        <Container className="max-w-4xl text-center">
-          <Reveal>
-            <p className="text-h2 leading-snug">
-              {content.storyHighlightTitle}.{" "}
-              <span className="text-surface-muted">
-                {content.storyHighlightBody}
-              </span>
-            </p>
-          </Reveal>
-        </Container>
-      </section>
+      {!hidden.story && content.storyHighlightTitle && (
+        <section className="bg-canvas pt-16 md:pt-24 lg:pt-32">
+          <Container className="max-w-4xl text-center">
+            <Reveal>
+              <p className="text-h2 leading-snug">
+                {content.storyHighlightTitle}.{" "}
+                <span className="text-surface-muted">
+                  {content.storyHighlightBody}
+                </span>
+              </p>
+            </Reveal>
+          </Container>
+        </section>
+      )}
 
       <LogoStrip brands={home.brands} />
 
       {/* Story: dark band with stats */}
-      <Section surface="royal">
-        <Container className="grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-20">
-          <div className="flex flex-col gap-6">
-            <Eyebrow>{content.storyLabel}</Eyebrow>
-            <Heading size="h1">
-              <AccentText text={autoAccent(content.storyTitle)} />
-            </Heading>
-            <p className="text-surface-fg/85 text-lg leading-relaxed">
-              {content.storyBody1}
-            </p>
-            <p className="text-surface-muted leading-relaxed">
-              {content.storyBody2}
-            </p>
-            {content.storyTrustedItems.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                <span className="text-surface-muted mr-1 text-sm">
-                  {content.storyTrustedLabel}
-                </span>
-                {content.storyTrustedItems.map((t) => (
-                  <span
-                    key={t}
-                    className="border-surface-fg/30 rounded-full border px-3 py-1 text-sm"
-                  >
-                    {t}
+      {!hidden.story && (
+        <Section surface="royal">
+          <Container className="grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-20">
+            <div className="flex flex-col gap-6">
+              <Eyebrow>{content.storyLabel}</Eyebrow>
+              <Heading size="h1">
+                <AccentText text={autoAccent(content.storyTitle)} />
+              </Heading>
+              <p className="text-surface-fg/85 text-lg leading-relaxed">
+                {content.storyBody1}
+              </p>
+              <p className="text-surface-muted leading-relaxed">
+                {content.storyBody2}
+              </p>
+              {content.storyTrustedItems.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <span className="text-surface-muted mr-1 text-sm">
+                    {content.storyTrustedLabel}
                   </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-4">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[10px]">
-              <MediaAsset
-                media={{
-                  kind: "image",
-                  src: spaceImages[0]?.src ?? stock(STOCK.teamWhiteboard, 1400),
-                  alt: "",
-                }}
-                sizes="(min-width: 1024px) 45vw, 100vw"
-                fallbackSrc={stock(STOCK.teamWhiteboard, 1400)}
-              />
+                  {content.storyTrustedItems.map((t) => (
+                    <span
+                      key={t}
+                      className="border-surface-fg/30 rounded-full border px-3 py-1 text-sm"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            {stats.length > 0 && (
-              <dl className="border-surface-rule grid grid-cols-2 border-t">
-                {stats.map(([value, label]) => (
-                  <div
-                    key={label}
-                    className="border-surface-rule flex flex-col gap-1 border-b py-5 odd:border-r odd:pr-4 even:pl-5"
-                  >
-                    <dt className="sr-only">{label}</dt>
-                    <dd className="font-[family-name:var(--font-accent)] text-5xl leading-none md:text-6xl">
-                      {value}
-                    </dd>
-                    <dd className="text-surface-muted text-sm">{label}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </div>
-        </Container>
-      </Section>
+            <div className="flex flex-col gap-4">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-[10px]">
+                <MediaAsset
+                  media={{
+                    kind: "image",
+                    src: content.storyImage
+                      ? stock(content.storyImage, 1400)
+                      : (spaceImages[0]?.src ??
+                        stock(STOCK.teamWhiteboard, 1400)),
+                    alt: "",
+                  }}
+                  sizes="(min-width: 1024px) 45vw, 100vw"
+                  fallbackSrc={stock(STOCK.teamWhiteboard, 1400)}
+                />
+              </div>
+              {stats.length > 0 && (
+                <dl className="border-surface-rule grid grid-cols-2 border-t">
+                  {stats.map(([value, label]) => (
+                    <div
+                      key={label}
+                      className="border-surface-rule flex flex-col gap-1 border-b py-5 odd:border-r odd:pr-4 even:pl-5"
+                    >
+                      <dt className="sr-only">{label}</dt>
+                      <dd className="font-[family-name:var(--font-accent)] text-5xl leading-none md:text-6xl">
+                        {value}
+                      </dd>
+                      <dd className="text-surface-muted text-sm">{label}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </div>
+          </Container>
+        </Section>
+      )}
 
       {/* What we bring */}
       {expertise.length > 0 && (
@@ -207,7 +226,10 @@ export default async function AboutPage() {
               {expertise.map((item) => (
                 <RevealItem key={item.title} className="flex flex-col gap-3">
                   <span className="border-surface-fg/15 inline-flex size-12 items-center justify-center rounded-[10px] border bg-white">
-                    <AboutIcon name={item.icon} className="size-6" />
+                    <AboutIcon
+                      name={item.icon as AboutIconKey}
+                      className="size-6"
+                    />
                   </span>
                   <p className="text-eyebrow text-surface-muted mt-3">
                     {item.metricValue}
@@ -224,7 +246,7 @@ export default async function AboutPage() {
       )}
 
       {/* Team */}
-      {team.length > 0 && (
+      {team.length > 0 && !hidden.team && (
         <Section id="team" surface="white" className="scroll-mt-20">
           <Container>
             <div className="mb-10 flex flex-col gap-6 md:mb-14 lg:flex-row lg:items-end lg:justify-between">
@@ -248,9 +270,9 @@ export default async function AboutPage() {
         <Section>
           <Container>
             <div className="mb-10 flex flex-col gap-4 md:mb-14">
-              <Eyebrow>Our journey</Eyebrow>
+              {c.journey.eyebrow && <Eyebrow>{c.journey.eyebrow}</Eyebrow>}
               <Heading size="h1">
-                <AccentText text="How we *got here*" />
+                <AccentText text={c.journey.title} />
               </Heading>
             </div>
             <RevealGroup className="grid gap-px overflow-hidden rounded-[10px] border border-[var(--surface-rule)] bg-[var(--surface-rule)] sm:grid-cols-2 lg:grid-cols-4">
@@ -298,7 +320,10 @@ export default async function AboutPage() {
                   className="border-surface-rule grid grid-cols-[4rem_1fr] gap-5 border-b py-8 first:pt-0 md:grid-cols-[5rem_1fr] md:gap-8"
                 >
                   <span className="text-brand flex size-16 items-center justify-center md:size-20">
-                    <AboutIcon name={v.icon} className="size-12 md:size-14" />
+                    <AboutIcon
+                      name={v.icon as AboutIconKey}
+                      className="size-12 md:size-14"
+                    />
                   </span>
                   <div className="flex flex-col gap-2">
                     <p className="text-eyebrow text-surface-muted">
@@ -371,13 +396,18 @@ export default async function AboutPage() {
 
       <TestimonialsCarousel items={home.testimonials} />
 
-      <ClosingCta
-        title={autoAccent(content.ctaTitle)}
-        body={content.ctaBody}
-        image={stock(STOCK.teamCafe, 2000)}
-        whatsappHref={whatsapp}
-        primary={{ label: "Talk to us", href: "/contact" }}
-      />
+      {!hidden.closing && (
+        <ClosingCta
+          content={{
+            title: autoAccent(c.closing.ctaTitle),
+            body: c.closing.ctaBody ?? "",
+            image: c.closing.image,
+            primary: c.closing.primary,
+            whatsappLabel: c.closing.whatsappLabel,
+          }}
+          whatsappHref={whatsapp}
+        />
+      )}
     </main>
   );
 }

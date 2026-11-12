@@ -102,8 +102,10 @@ export function ShareButtons({
 /** "On this page" list that highlights the section being read. */
 export function TableOfContents({
   items,
+  label = "On this page",
 }: {
   items: { id: string; text: string }[];
+  label?: string;
 }) {
   const [active, setActive] = useState(items[0]?.id ?? "");
 
@@ -127,8 +129,8 @@ export function TableOfContents({
 
   if (items.length < 2) return null;
   return (
-    <nav aria-label="On this page" className="flex flex-col gap-3">
-      <p className="text-eyebrow text-surface-muted">On this page</p>
+    <nav aria-label={label} className="flex flex-col gap-3">
+      <p className="text-eyebrow text-surface-muted">{label}</p>
       <ol className="border-surface-rule flex flex-col border-l">
         {items.map((i) => (
           <li key={i.id}>

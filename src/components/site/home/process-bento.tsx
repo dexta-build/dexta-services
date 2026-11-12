@@ -25,7 +25,25 @@ const EASE = [0.16, 1, 0.3, 1] as const;
  * WhatsApp-style chat card, a wide progress card with a ticking checklist,
  * a brand-kit collage and a "pay your way" currency card.
  */
-export function ProcessBento() {
+type Link = { label: string; href: string };
+
+/** Section content: the built-in copy plus the editable buttons and images. */
+export type ProcessContent = Omit<
+  typeof HOME_PROCESS,
+  "chat" | "progress" | "brandKit"
+> & {
+  primary?: Link;
+  secondary?: Link;
+  chat: typeof HOME_PROCESS.chat & { image?: string };
+  progress: typeof HOME_PROCESS.progress & { image?: string };
+  brandKit: typeof HOME_PROCESS.brandKit & { imageA?: string; imageB?: string };
+};
+
+export function ProcessBento({
+  content = HOME_PROCESS,
+}: {
+  content?: ProcessContent;
+} = {}) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { amount: 0.25 });
   const reduce = useReducedMotion();
@@ -36,21 +54,23 @@ export function ProcessBento() {
       <Container>
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-end lg:gap-16">
           <div className="flex flex-col gap-4">
-            <Eyebrow>{HOME_PROCESS.eyebrow}</Eyebrow>
+            <Eyebrow>{content.eyebrow}</Eyebrow>
             <Heading size="h1">
-              <AccentText text={HOME_PROCESS.title} />
+              <AccentText text={content.title} />
             </Heading>
           </div>
           <div className="flex flex-col gap-5">
-            <p className="text-surface-muted leading-relaxed">
-              {HOME_PROCESS.body}
-            </p>
+            <p className="text-surface-muted leading-relaxed">{content.body}</p>
             <div className="flex flex-col gap-3 md:flex-row">
-              <Button href="/contact" block="mobile">
-                Start a project
+              <Button href={content.primary?.href ?? "/contact"} block="mobile">
+                {content.primary?.label ?? "Start a project"}
               </Button>
-              <Button href="/catalogue" variant="outline" block="mobile">
-                Browse catalogues
+              <Button
+                href={content.secondary?.href ?? "/catalogue"}
+                variant="outline"
+                block="mobile"
+              >
+                {content.secondary?.label ?? "Browse catalogues"}
               </Button>
             </div>
           </div>
@@ -60,10 +80,10 @@ export function ProcessBento() {
           ref={ref}
           className="mt-10 grid gap-4 md:mt-14 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]"
         >
-          <ChatCard active={active} />
-          <ProgressCard active={active} />
-          <BrandKitCard />
-          <CurrencyCard active={active} />
+          <ChatCard active={active} chat={content.chat} />
+          <ProgressCard active={active} progress={content.progress} />
+          <BrandKitCard brandKit={content.brandKit} />
+          <CurrencyCard active={active} currency={content.currency} />
         </div>
       </Container>
     </Section>
@@ -72,8 +92,13 @@ export function ProcessBento() {
 
 /* ---------- Tall card: order on WhatsApp ---------- */
 
-function ChatCard({ active }: { active: boolean }) {
-  const { chat } = HOME_PROCESS;
+function ChatCard({
+  active,
+  chat,
+}: {
+  active: boolean;
+  chat: ProcessContent["chat"];
+}) {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -94,7 +119,7 @@ function ChatCard({ active }: { active: boolean }) {
   return (
     <article className="relative flex min-h-[30rem] flex-col justify-between overflow-hidden rounded-[10px] text-white md:row-span-2 lg:min-h-[44rem]">
       <Image
-        src={stock(STOCK.friendsSunset, 900, 1300)}
+        src={stock(chat.image ?? STOCK.friendsSunset, 900, 1300)}
         alt=""
         fill
         sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
@@ -158,8 +183,13 @@ function ChatCard({ active }: { active: boolean }) {
 
 /* ---------- Wide card: brief to delivery ---------- */
 
-function ProgressCard({ active }: { active: boolean }) {
-  const { progress } = HOME_PROCESS;
+function ProgressCard({
+  active,
+  progress,
+}: {
+  active: boolean;
+  progress: ProcessContent["progress"];
+}) {
   const [done, setDone] = useState(0);
 
   useEffect(() => {
@@ -174,7 +204,7 @@ function ProgressCard({ active }: { active: boolean }) {
   return (
     <article className="relative grid min-h-[22rem] overflow-hidden rounded-[10px] text-white md:col-span-1 lg:col-span-2 lg:grid-cols-2">
       <Image
-        src={stock(STOCK.teamWhiteboard, 1400, 800)}
+        src={stock(progress.image ?? STOCK.teamWhiteboard, 1400, 800)}
         alt=""
         fill
         sizes="(min-width: 1024px) 66vw, 100vw"
@@ -232,8 +262,7 @@ function ProgressCard({ active }: { active: boolean }) {
 
 /* ---------- Small card: brand kit collage ---------- */
 
-function BrandKitCard() {
-  const { brandKit } = HOME_PROCESS;
+function BrandKitCard({ brandKit }: { brandKit: ProcessContent["brandKit"] }) {
   return (
     <article
       data-surface="ice"
@@ -248,7 +277,7 @@ function BrandKitCard() {
       <div className="relative mt-auto h-40">
         <div className="absolute bottom-0 left-0 h-28 w-24 overflow-hidden rounded-lg shadow-lg">
           <Image
-            src={stock(STOCK.colourSwatches, 300, 360)}
+            src={stock(brandKit.imageA ?? STOCK.colourSwatches, 300, 360)}
             alt=""
             fill
             sizes="96px"
@@ -257,7 +286,7 @@ function BrandKitCard() {
         </div>
         <div className="absolute bottom-4 left-20 h-32 w-28 -rotate-3 overflow-hidden rounded-lg shadow-lg">
           <Image
-            src={stock(STOCK.typeOnTablet, 300, 360)}
+            src={stock(brandKit.imageB ?? STOCK.typeOnTablet, 300, 360)}
             alt=""
             fill
             sizes="112px"
@@ -277,8 +306,13 @@ function BrandKitCard() {
 
 /* ---------- Small card: pay your way ---------- */
 
-function CurrencyCard({ active }: { active: boolean }) {
-  const { currency } = HOME_PROCESS;
+function CurrencyCard({
+  active,
+  currency,
+}: {
+  active: boolean;
+  currency: typeof HOME_PROCESS.currency;
+}) {
   const symbols = ["₦", "$", "€", "£"];
   return (
     <article

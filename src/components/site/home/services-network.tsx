@@ -42,11 +42,15 @@ const PULSE_MS = 900;
  * people we serve. It pauses off screen and restarts when you come back.
  * Horizontal from 1024px; stacked vertically below.
  */
-export function ServicesNetwork() {
+export function ServicesNetwork({
+  content = HOME_NETWORK,
+}: {
+  content?: typeof HOME_NETWORK;
+} = {}) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { amount: 0.3 });
   const reduce = useReducedMotion();
-  const { chips, audiences } = HOME_NETWORK;
+  const { chips, audiences } = content;
   const [phase, setPhase] = useState<Phase>("intro");
   const [pulse, setPulse] = useState(0);
 
@@ -93,9 +97,9 @@ export function ServicesNetwork() {
     >
       <Container>
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 text-center">
-          <Eyebrow>{HOME_NETWORK.eyebrow}</Eyebrow>
+          <Eyebrow>{content.eyebrow}</Eyebrow>
           <Heading size="h1">
-            <AccentText text={HOME_NETWORK.title} />
+            <AccentText text={content.title} />
           </Heading>
         </div>
 

@@ -10,6 +10,13 @@ import { MediaViewer, type ViewerItem } from "../media-viewer";
 import { CurrencySwitcher, Price, useCurrency } from "./currency";
 import { OrderPanel, whatsAppWithText } from "./order-panel";
 import type { Surface } from "../section";
+import {
+  CATALOGUE_BROWSE_LABELS,
+  CATALOGUE_ORDER_LABELS,
+  fill,
+  type CatalogueBrowseLabels,
+  type CatalogueOrderLabels,
+} from "@/lib/site/catalogue-labels";
 import type {
   CatalogueData,
   CatalogueItemData,
@@ -18,11 +25,11 @@ import type {
 export type SortKey = "featured" | "price-asc" | "price-desc" | "newest";
 export type PriceKey = "any" | "under-5k" | "5k-50k" | "50k-500k" | "over-500k";
 
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: "featured", label: "Featured" },
-  { key: "price-asc", label: "Price: low to high" },
-  { key: "price-desc", label: "Price: high to low" },
-  { key: "newest", label: "Newest" },
+const SORTS: { key: SortKey; label: keyof CatalogueBrowseLabels }[] = [
+  { key: "featured", label: "sortFeatured" },
+  { key: "price-asc", label: "sortPriceAsc" },
+  { key: "price-desc", label: "sortPriceDesc" },
+  { key: "newest", label: "sortNewest" },
 ];
 
 /** Price bands in naira; labels are shown in the visitor's currency. */
@@ -86,6 +93,8 @@ type CatalogueBrowserProps = {
   /** Open this item on load (from /catalogue/[slug]/[item]). */
   initialItemSlug?: string;
   whatsappBase: string | null;
+  labels?: CatalogueBrowseLabels;
+  orderLabels?: CatalogueOrderLabels;
 };
 
 /**
@@ -97,6 +106,8 @@ export function CatalogueBrowser({
   initialFilters,
   initialItemSlug,
   whatsappBase,
+  labels: L = CATALOGUE_BROWSE_LABELS,
+  orderLabels = CATALOGUE_ORDER_LABELS,
 }: CatalogueBrowserProps) {
   const { format } = useCurrency();
   const [filters, setFilters] = useState<CatalogueFilters>(initialFilters);
@@ -121,7 +132,7 @@ export function CatalogueBrowser({
     else if (filters.sort === "price-desc")
       sorted.sort((a, b) => b.price - a.price);
     else if (filters.sort === "newest")
-      sorted.sort((a, b) => b.position - a.position);
+      sorted.sort((a, b) => b.createdAt - a.createdAt);
     else
       sorted.sort(
         (a, b) =>
@@ -235,7 +246,7 @@ export function CatalogueBrowser({
                       : "border-surface-fg/20 hover:border-surface-fg",
                   )}
                 >
-                  {cat === "all" ? "All" : cat}
+                  {cat === "all" ? L.allLabel : cat}
                   <span
                     className={cn(
                       "text-xs tabular-nums",
@@ -260,25 +271,25 @@ export function CatalogueBrowser({
                 type="search"
                 value={filters.query}
                 onChange={(e) => update({ query: e.target.value })}
-                placeholder="Search designs…"
+                placeholder={L.searchPlaceholder}
                 className="w-full bg-transparent text-sm outline-none"
               />
             </label>
             <Select
-              label="Sort by"
+              label={L.sortLabel}
               value={filters.sort}
               onChange={(v) => update({ sort: v as SortKey })}
-              options={SORTS.map((s) => ({ value: s.key, label: s.label }))}
+              options={SORTS.map((s) => ({ value: s.key, label: L[s.label] }))}
             />
             <Select
-              label="Price"
+              label={L.priceLabel}
               value={filters.price}
               onChange={(v) => update({ price: v as PriceKey })}
               options={PRICE_BANDS.map((b) => ({
                 value: b.key,
                 label:
                   b.key === "any"
-                    ? "Any price"
+                    ? L.anyPrice
                     : b.max === Infinity
                       ? `Over ${format(b.min)}`
                       : b.min === 0
@@ -294,8 +305,11 @@ export function CatalogueBrowser({
       <Container className="pt-6 md:pt-8">
         <div className="mb-5 flex items-center justify-between gap-4">
           <p className="text-surface-muted text-sm" aria-live="polite">
-            {filtered.length} {filtered.length === 1 ? "design" : "designs"}
-            {filters.category !== "all" && ` in ${filters.category}`}
+            {fill(filtered.length === 1 ? L.countOne : L.countMany, {
+              count: filtered.length,
+            })}
+            {filters.category !== "all" &&
+              ` ${fill(L.inCategory, { category: filters.category })}`}
           </p>
           {hasFilters && (
             <button
@@ -305,18 +319,15 @@ export function CatalogueBrowser({
               }
               className="inline-flex items-center gap-1 text-sm font-bold"
             >
-              <X className="size-4" /> Clear filters
+              <X className="size-4" /> {L.clearLabel}
             </button>
           )}
         </div>
 
         {filtered.length === 0 ? (
           <div className="border-surface-rule rounded-[10px] border border-dashed px-6 py-16 text-center">
-            <p className="text-h3">No designs match those filters</p>
-            <p className="text-surface-muted mt-2 text-sm">
-              Try another category or price, or tell us what you need and we'll
-              design it.
-            </p>
+            <p className="text-h3">{L.emptyTitle}</p>
+            <p className="text-surface-muted mt-2 text-sm">{L.emptyBody}</p>
           </div>
         ) : (
           <div className="flex gap-3 md:gap-4 xl:gap-5">
@@ -340,6 +351,7 @@ export function CatalogueBrowser({
                     catalogueTitle={catalogue.title}
                     surface={catalogue.surface}
                     whatsappBase={whatsappBase}
+                    labels={L}
                   />
                 )}
               </div>
@@ -365,6 +377,7 @@ export function CatalogueBrowser({
               catalogueTitle={catalogue.title}
               itemUrl={`${origin}/catalogue/${catalogue.slug}/${openItem.slug}`}
               whatsappBase={whatsappBase}
+              labels={orderLabels}
             />
           ) : null
         }
@@ -493,15 +506,17 @@ function CustomDesignTile({
   catalogueTitle,
   surface,
   whatsappBase,
+  labels: L,
 }: {
   catalogueTitle: string;
   surface: Surface;
   whatsappBase: string | null;
+  labels: CatalogueBrowseLabels;
 }) {
   const href = whatsappBase
     ? whatsAppWithText(
         whatsappBase,
-        `Hello Dexta! I'd like a custom ${catalogueTitle.toLowerCase()} design.`,
+        fill(L.customMessage, { catalogue: catalogueTitle.toLowerCase() }),
       )
     : "/contact";
   return (
@@ -516,13 +531,13 @@ function CustomDesignTile({
       <Sparkles aria-hidden className="size-6" />
       <span className="flex flex-col gap-2">
         <span className="dx-heading text-h3 leading-tight">
-          <AccentText text="Can't find it? *We'll design it.*" />
+          <AccentText text={L.customTitle} />
         </span>
         <span className="text-surface-muted text-sm leading-relaxed">
-          Tell us your idea and we'll create a design just for you.
+          {L.customBody}
         </span>
         <span className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold">
-          Ask on {whatsappBase ? "WhatsApp" : "our contact page"}
+          {whatsappBase ? L.customButton : L.customButtonNoWhatsApp}
           <ArrowUpRight
             aria-hidden
             className="size-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"

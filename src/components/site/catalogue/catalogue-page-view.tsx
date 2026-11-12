@@ -1,3 +1,5 @@
+import { CATALOGUE_TEMPLATE } from "@/lib/content/pages/templates";
+import { loadPage } from "@/lib/content/store";
 import { ClosingCta } from "../closing-cta";
 import { Container } from "../container";
 import { Eyebrow } from "../eyebrow";
@@ -12,10 +14,12 @@ import {
 import { CatalogueCards } from "./catalogue-cards";
 import { CatalogueHero } from "./catalogue-hero";
 import { CurrencyProvider } from "./currency";
-import { getCatalogues, type CatalogueData } from "@/lib/site/catalogue-data";
+import type { CatalogueData } from "@/lib/site/catalogue-data";
+import { getCatalogues } from "@/lib/site/catalogue-store";
+import { AccentText } from "../accent-text";
+import { getWhatsApp } from "@/lib/content/site-settings";
 import { getWhatsAppHref } from "@/lib/site/page-context";
 import { getRates } from "@/lib/site/rates";
-import { STOCK, stock } from "@/lib/site/stock-media";
 
 const SORTS: SortKey[] = ["featured", "price-asc", "price-desc", "newest"];
 const PRICES: PriceKey[] = [
@@ -55,20 +59,21 @@ export async function CataloguePageView({
   search: Search;
   initialItemSlug?: string;
 }) {
-  const [rates, whatsappBase, ctaWhatsapp] = await Promise.all([
+  const [rates, whatsappBase, ctaWhatsapp, all, template] = await Promise.all([
     getRates(),
     getWhatsAppHref(),
-    getWhatsAppHref(
-      `Hello Dexta, I'm looking at the ${catalogue.title} catalogue.`,
-    ),
+    getWhatsApp("catalogue", { catalogue: catalogue.title }),
+    getCatalogues(),
+    loadPage(CATALOGUE_TEMPLATE),
   ]);
+  const { data: templateContent, hidden } = template;
   const filters = filtersFromSearch(catalogue, search);
-  const others = getCatalogues().filter((c) => c.slug !== catalogue.slug);
-
+  const others = all.filter((c) => c.slug !== catalogue.slug);
+  const more = templateContent.more;
   return (
     <CurrencyProvider rates={rates}>
       <main className="dx-site">
-        <CatalogueHero catalogue={catalogue} />
+        <CatalogueHero catalogue={catalogue} labels={templateContent.hero} />
         <CatalogueBrowser
           // Remount when the address filters change (e.g. a hero chip link).
           key={JSON.stringify(filters)}
@@ -76,27 +81,31 @@ export async function CataloguePageView({
           initialFilters={filters}
           initialItemSlug={initialItemSlug}
           whatsappBase={whatsappBase}
+          labels={templateContent.browse}
+          orderLabels={templateContent.order}
         />
 
-        <Section surface="white">
-          <Container>
-            <div className="mb-10 flex flex-col gap-4 md:mb-12">
-              <Eyebrow>More catalogues</Eyebrow>
-              <Heading size="h1">
-                Shop by <em>occasion</em>
-              </Heading>
-            </div>
-            <CatalogueCards catalogues={others.slice(0, 3)} />
-          </Container>
-        </Section>
+        {!hidden.more && others.length > 0 && (
+          <Section surface="white">
+            <Container>
+              <div className="mb-10 flex flex-col gap-4 md:mb-12">
+                {more.eyebrow && <Eyebrow>{more.eyebrow}</Eyebrow>}
+                <Heading size="h1">
+                  <AccentText text={more.title} />
+                </Heading>
+              </div>
+              <CatalogueCards catalogues={others.slice(0, more.count || 3)} />
+            </Container>
+          </Section>
+        )}
 
-        <ClosingCta
-          variant="card"
-          title="Can't find *exactly what you want*?"
-          body="Tell us your idea and we'll design something just for you."
-          image={stock(STOCK.craftSupplies, 1800, 900)}
-          whatsappHref={ctaWhatsapp}
-        />
+        {!hidden.closing && (
+          <ClosingCta
+            content={templateContent.closing}
+            variant="card"
+            whatsappHref={ctaWhatsapp}
+          />
+        )}
       </main>
     </CurrencyProvider>
   );

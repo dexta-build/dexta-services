@@ -14,10 +14,14 @@ import { stock } from "@/lib/site/stock-media";
  * full-bleed photo, then the reverse. Stacks on mobile with the text first
  * for the first row and the photo first for the second, like Superside.
  */
-export function ColourSplits() {
+export function ColourSplits({
+  items = HOME_SPLITS,
+}: {
+  items?: typeof HOME_SPLITS;
+} = {}) {
   return (
     <section>
-      {HOME_SPLITS.map((split, i) => {
+      {items.map((split, i) => {
         const reverse = i % 2 === 1;
         return (
           <div key={split.eyebrow} className="grid lg:grid-cols-2">

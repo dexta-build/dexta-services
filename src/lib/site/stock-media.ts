@@ -1,3 +1,5 @@
+import { getCloudinaryUrl } from "@/lib/cloudinary";
+
 /**
  * TEMPORARY stock imagery (Unsplash licence: free for commercial use, no
  * attribution required). Every image used on the new public pages that is
@@ -5,10 +7,23 @@
  * file. In the admin phase these become uploadable.
  */
 
-/** Unsplash URL, cropped to w×h (h optional) at good quality. */
+const STOCK_ID = /^\d{10,13}-[0-9a-f]{8,14}$/;
+
+/**
+ * Image address for any stored image value, cropped to w×h (h optional):
+ * - a stock photo ID (Unsplash),
+ * - a site path ("/images/…") or full URL (used as is),
+ * - a Cloudinary public ID from the media library.
+ * Sections edited in the admin can hold any of these.
+ */
 export function stock(id: string, w = 1200, h?: number) {
-  const size = h ? `&h=${h}&fit=crop` : "";
-  return `https://images.unsplash.com/photo-${id}?auto=format&q=75&w=${w}${size}`;
+  if (!id) return "";
+  if (STOCK_ID.test(id)) {
+    const size = h ? `&h=${h}&fit=crop` : "";
+    return `https://images.unsplash.com/photo-${id}?auto=format&q=75&w=${w}${size}`;
+  }
+  if (id.startsWith("/") || /^https?:\/\//i.test(id)) return id;
+  return getCloudinaryUrl(id, { c: "fill", g: "auto", w, h });
 }
 
 export const STOCK = {
@@ -89,3 +104,21 @@ export const STOCK = {
 
 /** Placeholder showreel until Dexta has its own (served from /public). */
 export const SHOWREEL_VIDEO = "/videos/video1.mp4";
+
+/** Is this stored media value a video (a video file or Cloudinary video)? */
+export function isVideoSource(value: string) {
+  return (
+    /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(value) ||
+    value.includes("/video/upload/")
+  );
+}
+
+/**
+ * A stored media value (image or video) as an item for MediaAsset and the
+ * gallery viewer.
+ */
+export function mediaItemFor(value: string, alt: string, width = 1200) {
+  return isVideoSource(value)
+    ? { kind: "video" as const, src: value, alt }
+    : { kind: "image" as const, src: stock(value, width), alt };
+}

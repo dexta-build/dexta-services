@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CataloguePageView } from "@/components/site/catalogue/catalogue-page-view";
 import { formatMoney } from "@/lib/site/currency";
-import { getCatalogueItem, getCatalogues } from "@/lib/site/catalogue-data";
+import { getCatalogueItem, getCatalogues } from "@/lib/site/catalogue-store";
 
 type Params = { slug: string; item: string };
 type Search = Record<string, string | string[] | undefined>;
 
-export function generateStaticParams(): Params[] {
-  return getCatalogues().flatMap((c) =>
+export const dynamicParams = true;
+
+export async function generateStaticParams(): Promise<Params[]> {
+  return (await getCatalogues()).flatMap((c) =>
     c.items.map((i) => ({ slug: c.slug, item: i.slug })),
   );
 }
@@ -20,7 +22,7 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { slug, item } = await params;
-  const found = getCatalogueItem(slug, item);
+  const found = await getCatalogueItem(slug, item);
   if (!found) return {};
   const { catalogue, item: it } = found;
   const image =
@@ -43,7 +45,7 @@ export default async function CatalogueItemPage({
   searchParams: Promise<Search>;
 }) {
   const [{ slug, item }, search] = await Promise.all([params, searchParams]);
-  const found = getCatalogueItem(slug, item);
+  const found = await getCatalogueItem(slug, item);
   if (!found) notFound();
   return (
     <CataloguePageView

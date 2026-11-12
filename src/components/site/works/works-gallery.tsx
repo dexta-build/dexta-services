@@ -1,5 +1,7 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
+
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -32,16 +34,46 @@ const FILTERS: { key: WorksFilter; label: string; pillar?: Pillar }[] = [
  * - Phones always get the full-screen sheet.
  */
 const MAX_IN_PLACE = 4;
+
+export type GalleryLabels = {
+  featuredLabel: string;
+  filters: Record<WorksFilter | "allOccasions", string>;
+  viewLabel: string;
+  gridTitle: string;
+  filteredTitle: string;
+};
+
+const DEFAULT_LABELS: GalleryLabels = {
+  featuredLabel: "Featured work",
+  filters: {
+    all: "All work",
+    design: "Design",
+    build: "Build",
+    print: "Print",
+    allOccasions: "All occasions",
+  },
+  viewLabel: "View project",
+  gridTitle: "More *of our work*",
+  filteredTitle: "Our *{filter}* work",
+};
 export function WorksGallery({
   works,
   initialFilter,
+  labels = DEFAULT_LABELS,
 }: {
   works: WorkProject[];
   initialFilter: WorksFilter;
+  labels?: GalleryLabels;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [filter, setFilter] = useState<WorksFilter>(initialFilter);
+  const [occasion, setOccasion] = useState("");
+  // Occasions in use, in first-seen order.
+  const occasions = useMemo(
+    () => [...new Set(works.map((w) => w.occasion).filter(Boolean))],
+    [works],
+  );
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [sheet, setSheet] = useState<WorkProject | null>(null);
 
@@ -66,12 +98,18 @@ export function WorksGallery({
   }, [works]);
 
   // "All" hides the featured pair (shown above); a pillar filter shows everything in it.
+  // With an occasion chosen, every matching project shows (featured too).
   const visible = useMemo(() => {
     const pillar = FILTERS.find((f) => f.key === filter)?.pillar;
+    const byOccasion = occasion
+      ? works.filter((w) => w.occasion === occasion)
+      : works;
     return pillar
-      ? works.filter((w) => w.pillar === pillar)
-      : works.filter((w) => !featuredIds.has(w.id));
-  }, [works, filter, featuredIds]);
+      ? byOccasion.filter((w) => w.pillar === pillar)
+      : occasion
+        ? byOccasion
+        : byOccasion.filter((w) => !featuredIds.has(w.id));
+  }, [works, filter, featuredIds, occasion]);
 
   const choose = (next: WorksFilter) => {
     setFilter(next);
@@ -107,14 +145,15 @@ export function WorksGallery({
   return (
     <>
       {/* Featured */}
-      {featured.length > 0 && filter === "all" && (
+      {featured.length > 0 && filter === "all" && !occasion && (
         <section data-surface="canvas" className="bg-surface text-surface-fg">
           <Container className="pb-8 md:pb-10">
-            <Eyebrow>Featured work</Eyebrow>
+            <Eyebrow>{labels.featuredLabel}</Eyebrow>
           </Container>
           <div className="grid md:grid-cols-2">
             {featured.map((w) => (
               <WorkTile
+                viewLabel={labels.viewLabel}
                 key={w.id}
                 work={w}
                 large
@@ -133,7 +172,9 @@ export function WorksGallery({
           <Heading size="h1">
             <AccentText
               text={
-                filter === "all" ? "More *of our work*" : `Our *${filter}* work`
+                filter === "all"
+                  ? labels.gridTitle
+                  : labels.filteredTitle.replace("{filter}", filter)
               }
             />
           </Heading>
@@ -158,7 +199,7 @@ export function WorksGallery({
                       : "border-surface-fg/25 hover:border-surface-fg",
                   )}
                 >
-                  {f.label}
+                  {labels.filters[f.key] ?? f.label}
                   <span
                     className={cn(
                       "text-xs tabular-nums",
@@ -170,12 +211,41 @@ export function WorksGallery({
                 </button>
               );
             })}
+            {occasions.length > 0 && (
+              <label className="relative shrink-0">
+                <span className="sr-only">Filter by occasion</span>
+                <select
+                  value={occasion}
+                  onChange={(e) => {
+                    setOccasion(e.target.value);
+                    setExpanded(new Set());
+                  }}
+                  className={cn(
+                    "h-full cursor-pointer appearance-none rounded-full border py-2 pr-8 pl-4 text-sm outline-none",
+                    occasion
+                      ? "bg-surface-fg text-surface border-transparent"
+                      : "border-surface-fg/25 hover:border-surface-fg bg-transparent",
+                  )}
+                >
+                  <option value="">{labels.filters.allOccasions}</option>
+                  {occasions.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  aria-hidden
+                  className="pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2"
+                />
+              </label>
+            )}
           </div>
         </Container>
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={filter}
+            key={`${filter}-${occasion}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -184,6 +254,7 @@ export function WorksGallery({
           >
             {visible.map((w, i) => (
               <WorkTile
+                viewLabel={labels.viewLabel}
                 key={w.id}
                 work={w}
                 expanded={expanded.has(w.id)}

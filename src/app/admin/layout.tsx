@@ -1,10 +1,11 @@
-import { Toaster } from "@/components/ui/sonner";
+import { AdminToaster } from "@/components/admin/kit/feedback";
 
 export const metadata = {
   title: {
-    default: "Admin | Dexta Synergy Services",
+    default: "Admin",
     template: "%s | Admin",
   },
+  robots: { index: false, follow: false },
 };
 
 export default function AdminLayout({
@@ -13,9 +14,9 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="dx-site min-h-dvh">
       {children}
-      <Toaster theme="dark" />
+      <AdminToaster />
     </div>
   );
 }

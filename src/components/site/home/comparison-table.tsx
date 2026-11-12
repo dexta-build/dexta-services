@@ -12,15 +12,19 @@ import { HOME_COMPARISON } from "@/lib/site/home-content";
  * highlighted; on small screens the table scrolls sideways with the name
  * column pinned.
  */
-export function ComparisonTable() {
-  const { columns, rows } = HOME_COMPARISON;
+export function ComparisonTable({
+  content = HOME_COMPARISON,
+}: {
+  content?: typeof HOME_COMPARISON;
+} = {}) {
+  const { columns, rows } = content;
   return (
     <Section surface="royal">
       <Container>
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-          <Eyebrow>{HOME_COMPARISON.eyebrow}</Eyebrow>
+          <Eyebrow>{content.eyebrow}</Eyebrow>
           <Heading size="h1">
-            <AccentText text={HOME_COMPARISON.title} />
+            <AccentText text={content.title} />
           </Heading>
         </div>
 

@@ -2,6 +2,10 @@
 
 import { useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
+import {
+  OFFER_CARD_LABELS,
+  type OfferCardLabels,
+} from "@/lib/site/offer-labels";
 
 /*
  * One shared one-second clock for every countdown on the page. It runs only
@@ -46,11 +50,11 @@ export function useNow(): number | null {
 }
 
 const UNITS = [
-  { label: "Days", short: "d", ms: 86_400_000 },
-  { label: "Hours", short: "h", ms: 3_600_000 },
-  { label: "Mins", short: "m", ms: 60_000 },
-  { label: "Secs", short: "s", ms: 1000 },
-];
+  { key: "days", short: "d", ms: 86_400_000 },
+  { key: "hours", short: "h", ms: 3_600_000 },
+  { key: "mins", short: "m", ms: 60_000 },
+  { key: "secs", short: "s", ms: 1000 },
+] as const;
 
 function parts(remaining: number) {
   let rest = Math.max(0, remaining);
@@ -69,7 +73,9 @@ export function Countdown({
   endsAt,
   className,
   compact = false,
+  labels = OFFER_CARD_LABELS,
 }: {
+  labels?: OfferCardLabels;
   endsAt: string;
   className?: string;
   /** One line ("3d 05h 12m") for small spaces. */
@@ -83,13 +89,11 @@ export function Countdown({
     day: "numeric",
     month: "short",
   });
+  const endsLabel = labels.endsOn.replace("{date}", endDate);
 
   if (compact) {
     return (
-      <span
-        className={cn("tabular-nums", className)}
-        aria-label={`Ends ${endDate}`}
-      >
+      <span className={cn("tabular-nums", className)} aria-label={endsLabel}>
         {items
           ? items
               .filter((p, i) => i > 0 || p.value > 0)
@@ -111,23 +115,23 @@ export function Countdown({
             ending && "animate-pulse",
           )}
         />
-        {ending ? "Ending today" : `Ends ${endDate}`}
+        {ending ? labels.endingToday : endsLabel}
       </span>
       <div
         role="timer"
-        aria-label={`Ends ${endDate}`}
+        aria-label={endsLabel}
         className="grid grid-cols-4 gap-1.5"
       >
         {UNITS.map((u, i) => (
           <span
-            key={u.label}
+            key={u.key}
             className="bg-surface-fg/8 flex flex-col items-center rounded-[8px] py-2"
           >
             <span className="text-lg leading-none font-bold tabular-nums">
               {items ? String(items[i].value).padStart(2, "0") : "--"}
             </span>
             <span className="text-surface-muted mt-1 text-[0.625rem] font-bold tracking-[0.06em] uppercase">
-              {u.label}
+              {labels[u.key]}
             </span>
           </span>
         ))}

@@ -1,15 +1,17 @@
 import "server-only";
 
-import { fetchContactPageContent, fetchContactSocialLinks } from "@/lib/api";
-import { resolveWhatsAppHref } from "./whatsapp";
+import { getSiteSettings, socialLinks } from "@/lib/content/site-settings";
+import { resolveWhatsAppHref, whatsAppHref } from "./whatsapp";
 
-/** The site's WhatsApp link, optionally with a page-specific opening message. */
+/**
+ * The site's WhatsApp link with a specific opening message. Prefer
+ * getWhatsApp(key) from content/site-settings, whose messages are editable.
+ */
 export async function getWhatsAppHref(
   message?: string,
 ): Promise<string | null> {
-  const [contact, socials] = await Promise.all([
-    fetchContactPageContent(),
-    fetchContactSocialLinks(),
-  ]);
-  return resolveWhatsAppHref(socials, contact.phones, message);
+  const { business } = await getSiteSettings();
+  if (business.whatsappNumber?.trim())
+    return whatsAppHref(business.whatsappNumber, message);
+  return resolveWhatsAppHref(socialLinks(business), business.phones, message);
 }

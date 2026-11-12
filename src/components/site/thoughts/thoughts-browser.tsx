@@ -6,6 +6,11 @@ import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../button";
 import { PostCard } from "./post-card";
+import {
+  THOUGHTS_BROWSE_LABELS,
+  fillIn,
+  type ThoughtsBrowseLabels,
+} from "@/lib/site/thoughts-labels";
 import type { ThoughtCategory, ThoughtSummary } from "@/lib/site/thoughts-data";
 
 const PAGE_SIZE = 9;
@@ -24,7 +29,9 @@ export function ThoughtsBrowser({
   lockedCategory,
   initialQuery = "",
   initialSort = "latest",
+  labels: L = THOUGHTS_BROWSE_LABELS,
 }: {
+  labels?: ThoughtsBrowseLabels;
   posts: ThoughtSummary[];
   categories: ThoughtCategory[];
   /** Where the filters live in the URL, e.g. /thoughts. */
@@ -83,7 +90,7 @@ export function ThoughtsBrowser({
             }
             className="border-surface-fg/20 focus:border-surface-fg h-11 w-full cursor-pointer appearance-none rounded-full border bg-transparent pr-9 pl-4 text-sm outline-none"
           >
-            <option value="">All categories</option>
+            <option value="">{L.allCategories}</option>
             {categories.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.name}
@@ -108,21 +115,21 @@ export function ThoughtsBrowser({
               setQuery(e.target.value);
               setShown(PAGE_SIZE);
             }}
-            placeholder="Search…"
+            placeholder={L.searchPlaceholder}
             className="w-full bg-transparent text-sm outline-none"
           />
         </label>
 
         <label className="flex items-center gap-2 text-sm">
-          <span className="text-surface-muted shrink-0">Sort by</span>
+          <span className="text-surface-muted shrink-0">{L.sortLabel}</span>
           <span className="relative flex-1 md:flex-none">
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as ThoughtSort)}
               className="border-surface-fg/20 focus:border-surface-fg h-11 w-full cursor-pointer appearance-none rounded-full border bg-transparent pr-9 pl-4 outline-none md:w-36"
             >
-              <option value="latest">Latest</option>
-              <option value="oldest">Oldest</option>
+              <option value="latest">{L.latest}</option>
+              <option value="oldest">{L.oldest}</option>
             </select>
             <span
               aria-hidden
@@ -137,14 +144,10 @@ export function ThoughtsBrowser({
       {filtered.length === 0 ? (
         <div className="border-surface-rule rounded-[10px] border border-dashed px-6 py-16 text-center">
           <p className="text-h3">
-            {posts.length === 0
-              ? "No thoughts published yet"
-              : "Nothing matches that search"}
+            {posts.length === 0 ? L.noneTitle : L.noMatchTitle}
           </p>
           <p className="text-surface-muted mt-2 text-sm">
-            {posts.length === 0
-              ? "Our team is writing. Check back soon."
-              : "Try a different word or category."}
+            {posts.length === 0 ? L.noneBody : L.noMatchBody}
           </p>
           {query && (
             <button
@@ -152,7 +155,7 @@ export function ThoughtsBrowser({
               onClick={() => setQuery("")}
               className="mt-5 inline-flex items-center gap-1 text-sm font-bold"
             >
-              <X className="size-4" /> Clear search
+              <X className="size-4" /> {L.clearSearch}
             </button>
           )}
         </div>
@@ -160,7 +163,7 @@ export function ThoughtsBrowser({
         <>
           <div className="grid gap-x-6 gap-y-12 md:grid-cols-2 xl:grid-cols-3">
             {visible.map((p) => (
-              <PostCard key={p.id} post={p} />
+              <PostCard key={p.id} post={p} readLabel={L.readTime} />
             ))}
           </div>
           {filtered.length > shown && (
@@ -169,7 +172,7 @@ export function ThoughtsBrowser({
                 variant="outline"
                 onClick={() => setShown((n) => n + PAGE_SIZE)}
               >
-                Load more
+                {L.loadMore}
               </Button>
             </div>
           )}
@@ -180,7 +183,10 @@ export function ThoughtsBrowser({
             )}
             aria-live="polite"
           >
-            Showing {visible.length} of {filtered.length}
+            {fillIn(L.showing, {
+              shown: visible.length,
+              total: filtered.length,
+            })}
           </p>
         </>
       )}

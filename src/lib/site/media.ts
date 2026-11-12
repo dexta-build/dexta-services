@@ -1,4 +1,4 @@
-import { getCloudinaryUrl } from "@/lib/cloudinary";
+import { stock } from "./stock-media";
 import type { MediaItem } from "@/components/site/media-asset";
 
 const cloudName = () =>
@@ -10,13 +10,9 @@ function isUrlOrLocal(value: string) {
 
 /** Cloudinary (or local/absolute) image URL, cropped to fill w×h. */
 export function imageUrl(publicId: string, width = 900, height?: number) {
-  if (isUrlOrLocal(publicId)) return publicId;
-  return getCloudinaryUrl(publicId, {
-    c: "fill",
-    g: "auto",
-    w: width,
-    h: height,
-  });
+  // Same resolver as stock(): stock photo IDs, site paths, URLs and
+  // Cloudinary IDs (from the media library) all work.
+  return stock(publicId, width, height);
 }
 
 export function videoUrl(publicId: string) {

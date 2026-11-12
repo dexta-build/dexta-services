@@ -7,6 +7,11 @@ import { Button } from "../button";
 import { useCurrency } from "./currency";
 import { CURRENCIES } from "@/lib/site/currency";
 import type { CatalogueItemData } from "@/lib/site/catalogue-data";
+import {
+  CATALOGUE_ORDER_LABELS,
+  fill,
+  type CatalogueOrderLabels,
+} from "@/lib/site/catalogue-labels";
 
 /** Adds a pre-filled message to the site's WhatsApp link. */
 export function whatsAppWithText(base: string, text: string) {
@@ -31,7 +36,9 @@ export function OrderPanel({
   catalogueTitle,
   itemUrl,
   whatsappBase,
+  labels: L = CATALOGUE_ORDER_LABELS,
 }: {
+  labels?: CatalogueOrderLabels;
   item: CatalogueItemData;
   catalogueTitle: string;
   /** Absolute link to this item, included in the WhatsApp message. */
@@ -55,7 +62,7 @@ export function OrderPanel({
   const others = CURRENCIES.filter((c) => c !== currency);
 
   const message = [
-    "Hello Dexta! I'd like to order:",
+    L.messageIntro,
     "",
     `• ${item.title} (${catalogueTitle} · ${item.category})`,
     `• Quantity: ${qty} × ${item.unit}`,
@@ -93,13 +100,13 @@ export function OrderPanel({
       </div>
 
       <dl className="border-surface-rule grid grid-cols-2 gap-y-2 border-t pt-4 text-sm">
-        <dt className="text-surface-muted">Minimum order</dt>
+        <dt className="text-surface-muted">{L.minimumLabel}</dt>
         <dd className="text-right font-bold">
           {item.moq} × {item.unit}
         </dd>
         {item.tags.length > 0 && (
           <>
-            <dt className="text-surface-muted">Details</dt>
+            <dt className="text-surface-muted">{L.detailsLabel}</dt>
             <dd className="text-right">{item.tags.join(", ")}</dd>
           </>
         )}
@@ -107,7 +114,7 @@ export function OrderPanel({
 
       <div className="flex flex-col gap-2">
         <label htmlFor={`qty-${item.id}`} className="text-sm font-bold">
-          Quantity
+          {L.quantityLabel}
         </label>
         <div className="flex items-center gap-2">
           <button
@@ -146,13 +153,13 @@ export function OrderPanel({
             Number(draft) < item.moq && "text-coral",
           )}
         >
-          Minimum {item.moq}.{" "}
-          {Number(draft) < item.moq && "We'll round up to the minimum."}
+          {fill(L.minimumNote, { moq: item.moq })}{" "}
+          {Number(draft) < item.moq && L.roundUpNote}
         </p>
       </div>
 
       <div className="border-surface-rule flex items-baseline justify-between border-t pt-4">
-        <span className="text-sm">Estimated total</span>
+        <span className="text-sm">{L.totalLabel}</span>
         <span className="text-xl font-bold tabular-nums">{format(total)}</span>
       </div>
 
@@ -164,16 +171,14 @@ export function OrderPanel({
           arrow
           size="lg"
         >
-          Order on WhatsApp
+          {L.orderButton}
         </Button>
       ) : (
         <Button href="/contact" block arrow size="lg">
-          Request this item
+          {L.requestButton}
         </Button>
       )}
-      <p className="text-surface-muted text-center text-xs">
-        Prices are estimates. We confirm the final price before production.
-      </p>
+      <p className="text-surface-muted text-center text-xs">{L.priceNote}</p>
     </div>
   );
 }

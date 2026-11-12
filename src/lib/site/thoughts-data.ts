@@ -2,6 +2,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import sanitizeHtml from "sanitize-html";
 import prisma from "@/lib/prisma";
+import { isPreviewing } from "@/lib/content/store";
 import type { Surface } from "@/components/site/section";
 import { imageUrl } from "./media";
 import { stock } from "./stock-media";
@@ -182,55 +183,72 @@ export function renderArticle(content: string) {
 
 /* ---------- reading ---------- */
 
-async function readFromDb(): Promise<ThoughtsData> {
-  const [categories, posts] = await Promise.all([
-    prisma.postCategory.findMany({ orderBy: { position: "asc" } }),
-    prisma.post.findMany({
-      where: { status: "PUBLISHED", publishedAt: { not: null } },
-      orderBy: { publishedAt: "desc" },
-      include: {
-        category: true,
-        author: { select: { name: true, role: true, imagePublicId: true } },
-      },
-    }),
-  ]);
-  const cats = categories.map((c, i) => ({
+const POST_INCLUDE = {
+  category: true,
+  author: { select: { name: true, role: true, imagePublicId: true } },
+} as const;
+
+type PostRow = Awaited<
+  ReturnType<typeof prisma.post.findMany<{ include: typeof POST_INCLUDE }>>
+>[number];
+
+function toCategories(
+  rows: Awaited<ReturnType<typeof prisma.postCategory.findMany>>,
+): ThoughtCategory[] {
+  return rows.map((c, i) => ({
     name: c.name,
     slug: c.slug,
     description: c.description,
     surface: surfaceFor(c.color, i),
   }));
+}
+
+function toPost(
+  p: PostRow,
+  cats: ThoughtCategory[],
+): ThoughtsData["posts"][number] {
   return {
-    categories: cats,
-    posts: posts.map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      title: p.title,
-      excerpt: p.excerpt,
-      cover: p.coverPublicId
-        ? imageUrl(p.coverPublicId, 1600, 1000)
-        : stock("1552664730-d307ca884978", 1600, 1000),
-      category: p.category
-        ? (cats.find((c) => c.slug === p.category!.slug) ?? null)
-        : null,
-      author: p.author
-        ? {
-            name: p.author.name,
-            role: p.author.role,
-            avatar: p.author.imagePublicId
-              ? imageUrl(p.author.imagePublicId, 96, 96)
-              : null,
-          }
-        : null,
-      publishedAt: (p.publishedAt ?? p.createdAt).toISOString(),
-      readingMinutes: readingMinutes(p.content),
-      featured: p.isFeatured,
-      tags: parseTags(p.tags),
-      content: p.content,
-      seoTitle: p.seoTitle,
-      seoDescription: p.seoDescription,
-    })),
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    excerpt: p.excerpt,
+    cover: p.coverPublicId
+      ? imageUrl(p.coverPublicId, 1600, 1000)
+      : stock("1552664730-d307ca884978", 1600, 1000),
+    category: p.category
+      ? (cats.find((c) => c.slug === p.category!.slug) ?? null)
+      : null,
+    author: p.author
+      ? {
+          name: p.author.name,
+          role: p.author.role,
+          avatar: p.author.imagePublicId
+            ? imageUrl(p.author.imagePublicId, 96, 96)
+            : null,
+        }
+      : null,
+    publishedAt: (p.publishedAt ?? p.createdAt).toISOString(),
+    readingMinutes: readingMinutes(p.content),
+    featured: p.isFeatured,
+    tags: parseTags(p.tags),
+    content: p.content,
+    seoTitle: p.seoTitle,
+    seoDescription: p.seoDescription,
   };
+}
+
+async function readFromDb(): Promise<ThoughtsData> {
+  const [categories, posts] = await Promise.all([
+    prisma.postCategory.findMany({ orderBy: { position: "asc" } }),
+    // Scheduled posts are included and hidden until their time (getData).
+    prisma.post.findMany({
+      where: { status: "PUBLISHED", publishedAt: { not: null } },
+      orderBy: { publishedAt: "desc" },
+      include: POST_INCLUDE,
+    }),
+  ]);
+  const cats = toCategories(categories);
+  return { categories: cats, posts: posts.map((p) => toPost(p, cats)) };
 }
 
 async function readSamples(): Promise<ThoughtsData> {
@@ -298,10 +316,34 @@ const readThoughtsCached = unstable_cache(readThoughts, ["site-thoughts"], {
   tags: [THOUGHTS_TAG],
 });
 
-async function getData() {
-  return process.env.NODE_ENV === "development"
-    ? readThoughts()
-    : readThoughtsCached();
+/**
+ * Published posts whose time has come. Scheduled posts sit in the cache
+ * and appear the moment their date passes, without a refresh timer, on
+ * every page that renders per request (all the Thoughts pages do).
+ */
+async function getData(): Promise<ThoughtsData> {
+  const data =
+    process.env.NODE_ENV === "development"
+      ? await readThoughts()
+      : await readThoughtsCached();
+  const now = Date.now();
+  return {
+    ...data,
+    posts: data.posts.filter((p) => Date.parse(p.publishedAt) <= now),
+  };
+}
+
+/** Preview (admin "Preview"): any post by its address, drafts included. */
+async function readPreviewPost(slug: string) {
+  try {
+    const [categories, row] = await Promise.all([
+      prisma.postCategory.findMany({ orderBy: { position: "asc" } }),
+      prisma.post.findUnique({ where: { slug }, include: POST_INCLUDE }),
+    ]);
+    return row ? toPost(row, toCategories(categories)) : null;
+  } catch {
+    return null;
+  }
 }
 
 function summary(p: ThoughtsData["posts"][number]): ThoughtSummary {
@@ -327,7 +369,9 @@ export async function getThought(slug: string): Promise<{
   related: ThoughtSummary[];
 } | null> {
   const { posts } = await getData();
-  const found = posts.find((p) => p.slug === slug);
+  const found =
+    ((await isPreviewing()) ? await readPreviewPost(slug) : null) ??
+    posts.find((p) => p.slug === slug);
   if (!found) return null;
   const { html, toc } = renderArticle(found.content);
   const sameCategory = posts.filter(

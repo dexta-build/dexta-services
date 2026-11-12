@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ServicePageTemplate } from "@/components/site/services/service-page-template";
+import { loadServicePage } from "@/lib/content/pages/services";
+import { pageMetadata } from "@/lib/content/seo";
+import { getWhatsApp } from "@/lib/content/site-settings";
 import { getHomeData } from "@/lib/site/home-data";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import {
-  getPillar,
-  PILLARS,
-  type PillarKey,
-} from "@/lib/site/services-content";
-import { SERVICE_GROUPS } from "@/lib/site/navigation";
+import { PILLAR_KEYS, getServiceCatalog } from "@/lib/services/catalog";
 
 type Params = { pillar: string };
 
-export function generateStaticParams(): Params[] {
-  return (Object.keys(PILLARS) as PillarKey[]).map((pillar) => ({ pillar }));
+export async function generateStaticParams() {
+  try {
+    return (await getServiceCatalog()).map((p) => ({ pillar: p.key }));
+  } catch {
+    return PILLAR_KEYS.map((pillar) => ({ pillar }));
+  }
 }
-
-const plain = (text: string) => text.replace(/\*/g, "");
 
 export async function generateMetadata({
   params,
@@ -24,13 +23,8 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { pillar } = await params;
-  const page = getPillar(pillar);
-  if (!page) return {};
-  return {
-    alternates: { canonical: `/services/${pillar}` },
-    title: page.hero.eyebrow,
-    description: plain(page.hero.body),
-  };
+  const loaded = await loadServicePage(pillar);
+  return loaded ? pageMetadata(loaded.def) : {};
 }
 
 export default async function PillarPage({
@@ -39,28 +33,24 @@ export default async function PillarPage({
   params: Promise<Params>;
 }) {
   const { pillar } = await params;
-  const page = getPillar(pillar);
-  if (!page) notFound();
+  const loaded = await loadServicePage(pillar);
+  if (!loaded) notFound();
 
-  const group = SERVICE_GROUPS.find((g) => g.key === pillar);
   const [home, whatsappHref] = await Promise.all([
     getHomeData(),
-    getWhatsAppHref(
-      `Hello Dexta, I'd like to talk about ${page.shortName} services.`,
-    ),
+    getWhatsApp("servicePillar", { service: loaded.page.shortName }),
   ]);
 
   return (
     <ServicePageTemplate
-      page={page}
+      page={loaded.page}
+      hidden={loaded.hidden}
+      faqTitle={loaded.faqTitle}
       brands={home.brands}
       whatsappHref={whatsappHref}
       breadcrumbs={[
         { label: "Services", href: "/services" },
-        {
-          label: group?.title ?? page.hero.eyebrow,
-          href: `/services/${pillar}`,
-        },
+        { label: loaded.pillar.title, href: `/services/${pillar}` },
       ]}
     />
   );

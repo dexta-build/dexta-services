@@ -13,16 +13,15 @@ import {
   type ThoughtSort,
 } from "@/components/site/thoughts/thoughts-browser";
 import { TrendingBand } from "@/components/site/thoughts/trending-band";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import { STOCK, stock } from "@/lib/site/stock-media";
+import { THOUGHTS_PAGE } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import { getWhatsApp } from "@/lib/content/site-settings";
+import { loadPage } from "@/lib/content/store";
 import { getThoughtCategories, getThoughts } from "@/lib/site/thoughts-data";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/thoughts" },
-  title: "Thoughts",
-  description:
-    "Ideas, guides and stories from the Dexta team on brand, design, software and print.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(THOUGHTS_PAGE);
+}
 
 type Search = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -36,8 +35,9 @@ export default async function ThoughtsPage({
     searchParams,
     getThoughts(),
     getThoughtCategories(),
-    getWhatsAppHref("Hello Dexta, I read one of your articles and..."),
+    getWhatsApp("thoughts"),
   ]);
+  const { data: c, hidden } = await loadPage(THOUGHTS_PAGE);
 
   // Two featured stories (admin-flagged first, then the newest).
   const featured = [
@@ -57,13 +57,12 @@ export default async function ThoughtsPage({
     <main className="dx-site">
       <Section spacing="sm" className="pt-12 md:pt-16">
         <Container className="flex flex-col items-center gap-5 text-center">
-          <Eyebrow>Our thoughts</Eyebrow>
+          {c.hero.eyebrow && <Eyebrow>{c.hero.eyebrow}</Eyebrow>}
           <Heading size="display" as="h1">
-            <AccentText text="Ideas worth *sharing*" />
+            <AccentText text={c.hero.title} />
           </Heading>
           <p className="text-lead text-surface-muted max-w-2xl">
-            Practical tips, behind-the-scenes stories and lessons from our work
-            in brand, design, software and print.
+            {c.hero.body}
           </p>
         </Container>
 
@@ -72,7 +71,13 @@ export default async function ThoughtsPage({
             <RevealGroup className="grid gap-12 md:grid-cols-2 md:gap-6 lg:gap-8">
               {featured.map((p, i) => (
                 <RevealItem key={p.id}>
-                  <PostCard post={p} size="lg" showAuthor priority={i === 0} />
+                  <PostCard
+                    post={p}
+                    size="lg"
+                    showAuthor
+                    priority={i === 0}
+                    readLabel={c.browse.readTime}
+                  />
                 </RevealItem>
               ))}
             </RevealGroup>
@@ -81,7 +86,12 @@ export default async function ThoughtsPage({
       </Section>
 
       {trending && trending.posts.length >= 2 && (
-        <TrendingBand category={trending.category} posts={trending.posts} />
+        <TrendingBand
+          category={trending.category}
+          posts={trending.posts}
+          label={c.browse.trending}
+          readLabel={c.browse.readTime}
+        />
       )}
 
       {posts.length === 0 ? (
@@ -92,19 +102,22 @@ export default async function ThoughtsPage({
               className="bg-surface text-surface-fg mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-[10px] px-6 py-14 text-center md:py-20"
             >
               <p className="text-h2">
-                <AccentText text="Our first articles are *on the way*" />
+                <AccentText text={c.empty.title} />
               </p>
               <p className="text-surface-muted max-w-md leading-relaxed">
-                The team is writing. In the meantime, see the products we build
-                and the work we&apos;re proud of.
+                {c.empty.body}
               </p>
               <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-                <Button href="/works" arrow>
-                  See our work
-                </Button>
-                <Button href="/expressions" variant="outline">
-                  Our Expressions
-                </Button>
+                {c.empty.primary.label && c.empty.primary.href && (
+                  <Button href={c.empty.primary.href} arrow>
+                    {c.empty.primary.label}
+                  </Button>
+                )}
+                {c.empty.secondary.label && c.empty.secondary.href && (
+                  <Button href={c.empty.secondary.href} variant="outline">
+                    {c.empty.secondary.label}
+                  </Button>
+                )}
               </div>
             </div>
           </Container>
@@ -113,12 +126,13 @@ export default async function ThoughtsPage({
         <Section id="all-thoughts" className="scroll-mt-24">
           <Container>
             <Heading size="h2" className="mb-8 text-center md:mb-10">
-              All thoughts
+              {c.browse.allTitle}
             </Heading>
             <ThoughtsBrowser
               posts={posts}
               categories={categories}
               basePath="/thoughts"
+              labels={c.browse}
               initialQuery={one(search.q) ?? ""}
               initialSort={
                 (one(search.sort) === "oldest"
@@ -130,12 +144,9 @@ export default async function ThoughtsPage({
         </Section>
       )}
 
-      <ClosingCta
-        title="Got a project in mind? *Let's talk*"
-        body="Tell us what you're working on and we'll share how we can help."
-        image={stock(STOCK.teamLaptopCasual, 2000)}
-        whatsappHref={whatsappHref}
-      />
+      {!hidden.closing && (
+        <ClosingCta content={c.closing} whatsappHref={whatsappHref} />
+      )}
     </main>
   );
 }

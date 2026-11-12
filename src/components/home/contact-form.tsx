@@ -19,7 +19,29 @@ const initialState = {
   message: "",
 };
 
-function SubmitButton({ light = false }: { light?: boolean }) {
+export type ContactFormLabels = {
+  nameLabel: string;
+  emailLabel: string;
+  messageLabel: string;
+  submit: string;
+  sending: string;
+};
+
+const DEFAULT_LABELS: ContactFormLabels = {
+  nameLabel: "Name",
+  emailLabel: "Email",
+  messageLabel: "Message",
+  submit: "Send message",
+  sending: "Sending…",
+};
+
+function SubmitButton({
+  light = false,
+  labels = DEFAULT_LABELS,
+}: {
+  light?: boolean;
+  labels?: ContactFormLabels;
+}) {
   const { pending } = useFormStatus();
 
   if (light) {
@@ -33,11 +55,11 @@ function SubmitButton({ light = false }: { light?: boolean }) {
         {pending ? (
           <>
             <Loader className="mr-2 h-4 w-4 animate-spin" />
-            Sending...
+            {labels.sending}
           </>
         ) : (
           <>
-            Send Message
+            {labels.submit}
             <ArrowRight className="ml-2 w-4 h-4" />
           </>
         )}
@@ -68,7 +90,13 @@ function SubmitButton({ light = false }: { light?: boolean }) {
 }
 
 // Shared form card — dark (home page) or light (contact page)
-function ContactFormCard({ light = false }: { light?: boolean }) {
+function ContactFormCard({
+  light = false,
+  labels = DEFAULT_LABELS,
+}: {
+  light?: boolean;
+  labels?: ContactFormLabels;
+}) {
   const [state, formAction] = useActionState(
     submitContactForm,
     initialState,
@@ -161,7 +189,7 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
 
           <div>
             <label htmlFor="name" className={labelClass}>
-              Name
+              {light ? labels.nameLabel : "Name"}
             </label>
             <input
               type="text"
@@ -176,7 +204,7 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
           </div>
           <div>
             <label htmlFor="email" className={labelClass}>
-              Email
+              {light ? labels.emailLabel : "Email"}
             </label>
             <input
               type="email"
@@ -191,7 +219,7 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
           </div>
           <div>
             <label htmlFor="message" className={labelClass}>
-              Message
+              {light ? labels.messageLabel : "Message"}
             </label>
             <textarea
               id="message"
@@ -205,7 +233,7 @@ function ContactFormCard({ light = false }: { light?: boolean }) {
             )}
           </div>
           <div className="pt-2">
-            <SubmitButton light={light} />
+            <SubmitButton light={light} labels={labels} />
           </div>
           {state?.message && (
             <p
@@ -319,10 +347,14 @@ export function ContactForm() {
 }
 
 // For embedding inside the contact page layout (light theme, no section wrapper)
-export function ContactFormEmbed() {
+export function ContactFormEmbed({
+  labels,
+}: {
+  labels?: ContactFormLabels;
+} = {}) {
   return (
     <RecaptchaProvider>
-      <ContactFormCard light={true} />
+      <ContactFormCard light={true} labels={labels} />
     </RecaptchaProvider>
   );
 }

@@ -2,7 +2,10 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import prisma from "@/lib/prisma";
 import type { MediaItem } from "@/components/site/media-asset";
-import { HERO_USE_SAMPLE_PROJECTS, HOME_SAMPLE_PROJECTS } from "./home-content";
+import { HOME_SAMPLE_PROJECTS } from "./home-content";
+import { loadPage } from "@/lib/content/store";
+import { WORKS_PAGE } from "@/lib/content/pages/main";
+import { getServiceCatalog, projectCategory } from "@/lib/services/catalog";
 import { getBrandLogos, type BrandLogo } from "./brands-data";
 import { toMediaItem } from "./media";
 import { stock } from "./stock-media";
@@ -22,6 +25,8 @@ export type WorkProject = {
   title: string;
   category: string;
   pillar: Pillar;
+  /** Occasion or sector, e.g. "Wedding" (empty when none). */
+  occasion: string;
   featured: boolean;
   tags: string[];
   description: string;
@@ -55,6 +60,14 @@ function parseTags(raw: string): string[] {
   }
 }
 
+const SAMPLE_OCCASIONS: Record<string, string> = {
+  Wedding: "Wedding",
+  Events: "Events",
+  Birthdays: "Birthday",
+  Education: "Education",
+  Corporate: "Corporate",
+};
+
 function sampleWorks(): WorkProject[] {
   return HOME_SAMPLE_PROJECTS.map((p) => ({
     id: p.id,
@@ -62,6 +75,7 @@ function sampleWorks(): WorkProject[] {
     title: p.title,
     category: p.category,
     pillar: p.pillar,
+    occasion: SAMPLE_OCCASIONS[p.category.split("·")[0].trim()] ?? "",
     featured: Boolean(p.featured),
     tags: p.tags,
     description: p.description,
@@ -74,34 +88,59 @@ function sampleWorks(): WorkProject[] {
   }));
 }
 
+const PROJECT_SELECT = {
+  id: true,
+  slug: true,
+  title: true,
+  clientName: true,
+  description: true,
+  tags: true,
+  serviceType: true,
+  isFeatured: true,
+  websiteUrl: true,
+  mediaType: true,
+  mediaPublicId: true,
+  thumbnailPublicId: true,
+  coverAsset: { select: { publicId: true } },
+  assets: {
+    orderBy: { position: "asc" as const },
+    select: { publicId: true, mediaType: true, thumbnailPublicId: true },
+  },
+};
+
+async function portfolioRows() {
+  const where = { isVisible: true };
+  const orderBy = [
+    { isFeatured: "desc" as const },
+    { position: "asc" as const },
+    { updatedAt: "desc" as const },
+  ];
+  try {
+    return await prisma.portfolioItem.findMany({
+      where,
+      orderBy,
+      select: { ...PROJECT_SELECT, service: true, occasion: true },
+    });
+  } catch {
+    // service/occasion columns not pushed yet.
+    const rows = await prisma.portfolioItem.findMany({
+      where,
+      orderBy,
+      select: PROJECT_SELECT,
+    });
+    return rows.map((r) => ({
+      ...r,
+      service: null as string | null,
+      occasion: null as string | null,
+    }));
+  }
+}
+
 async function portfolioWorks(): Promise<WorkProject[]> {
-  const rows = await prisma.portfolioItem.findMany({
-    where: { isVisible: true },
-    orderBy: [
-      { isFeatured: "desc" },
-      { position: "asc" },
-      { updatedAt: "desc" },
-    ],
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      clientName: true,
-      description: true,
-      tags: true,
-      serviceType: true,
-      isFeatured: true,
-      websiteUrl: true,
-      mediaType: true,
-      mediaPublicId: true,
-      thumbnailPublicId: true,
-      coverAsset: { select: { publicId: true } },
-      assets: {
-        orderBy: { position: "asc" },
-        select: { publicId: true, mediaType: true, thumbnailPublicId: true },
-      },
-    },
-  });
+  const [rows, catalog] = await Promise.all([
+    portfolioRows(),
+    getServiceCatalog(),
+  ]);
 
   return rows.map((row) => {
     const title = row.clientName || row.title;
@@ -127,8 +166,16 @@ async function portfolioWorks(): Promise<WorkProject[]> {
       id: row.id,
       slug: row.slug || `${toSlug(title)}-${row.id.slice(0, 6)}`,
       title,
-      category: PILLAR_LABEL[row.serviceType],
+      category: projectCategory(
+        {
+          group: row.serviceType,
+          service: row.service,
+          occasion: row.occasion,
+        },
+        catalog,
+      ),
       pillar: row.serviceType,
+      occasion: row.occasion ?? "",
       featured: row.isFeatured,
       tags: parseTags(row.tags),
       description: row.description ?? "",
@@ -143,21 +190,29 @@ async function portfolioWorks(): Promise<WorkProject[]> {
   });
 }
 
-async function loadWorks(): Promise<WorkProject[]> {
-  if (HERO_USE_SAMPLE_PROJECTS) return sampleWorks();
+type Source = "samples" | "projects";
+
+async function loadWorks(source: Source): Promise<WorkProject[]> {
+  if (source === "samples") return sampleWorks();
   return portfolioWorks().catch(() => []);
 }
 
-// Cached until the admin saves (the portfolio and brand actions already call
-// updateTag with these tags), so there is no time-based re-reading.
-const loadWorksCached = unstable_cache(loadWorks, ["works-v1"], {
-  revalidate: false,
-  tags: ["portfolio-content"],
-});
 const dev = process.env.NODE_ENV === "development";
 
-export function getWorks(): Promise<WorkProject[]> {
-  return dev ? loadWorks() : loadWorksCached();
+/**
+ * The projects visitors see: the sample projects or the real ones, as set
+ * in the Works page editor (Projects gallery → Show). Cached until a
+ * project is saved (tag "portfolio-content").
+ */
+export async function getWorks(): Promise<WorkProject[]> {
+  const { data } = await loadPage(WORKS_PAGE);
+  const source: Source =
+    data.projects.source === "projects" ? "projects" : "samples";
+  if (dev) return loadWorks(source);
+  return unstable_cache(() => loadWorks(source), ["works-v2", source], {
+    revalidate: false,
+    tags: ["portfolio-content", "services-catalog"],
+  })();
 }
 
 export function getBrands(): Promise<WorkBrand[]> {

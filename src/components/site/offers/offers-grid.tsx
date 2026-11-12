@@ -7,6 +7,13 @@ import type { Surface } from "../section";
 import { useNow } from "./countdown";
 import { OfferCard } from "./offer-card";
 import { isOfferLive, type OfferData } from "@/lib/site/offers-shared";
+import { AccentText } from "../accent-text";
+import {
+  NO_OFFERS_LABELS,
+  OFFER_CARD_LABELS,
+  type NoOffersLabels,
+  type OfferCardLabels,
+} from "@/lib/site/offer-labels";
 
 const PASTELS: Surface[] = ["ice", "mint", "gold", "lilac", "coral", "stone"];
 
@@ -32,16 +39,21 @@ export function OffersGrid({
   offers,
   serverNow,
   whatsappBase,
+  labels,
+  emptyLabels,
 }: {
   offers: OfferData[];
   /** Time the server rendered at, used until the browser clock takes over. */
   serverNow: number;
   whatsappBase: string | null;
+  labels?: OfferCardLabels;
+  emptyLabels?: NoOffersLabels;
 }) {
   const now = useNow() ?? serverNow;
   const live = offers.filter((o) => isOfferLive(o, now));
 
-  if (live.length === 0) return <NoOffers whatsappBase={whatsappBase} />;
+  if (live.length === 0)
+    return <NoOffers whatsappBase={whatsappBase} labels={emptyLabels} />;
 
   return (
     <div className="flex flex-wrap justify-center gap-4 lg:gap-5">
@@ -57,6 +69,7 @@ export function OffersGrid({
             offer={o}
             surface={PASTELS[i % PASTELS.length]}
             whatsappBase={whatsappBase}
+            labels={labels ?? OFFER_CARD_LABELS}
           />
         </div>
       ))}
@@ -65,7 +78,13 @@ export function OffersGrid({
 }
 
 /** Shown when no offer is running. */
-export function NoOffers({ whatsappBase }: { whatsappBase: string | null }) {
+export function NoOffers({
+  whatsappBase,
+  labels: L = NO_OFFERS_LABELS,
+}: {
+  whatsappBase: string | null;
+  labels?: NoOffersLabels;
+}) {
   return (
     <div
       data-surface="ice"
@@ -78,19 +97,18 @@ export function NoOffers({ whatsappBase }: { whatsappBase: string | null }) {
         <Tag className="size-7" />
       </span>
       <h3 className="dx-heading text-h2 max-w-xl">
-        No Offer available at this time
+        <AccentText text={L.title} />
       </h3>
-      <p className="text-surface-muted max-w-md leading-relaxed">
-        New offers are on the way. In the meantime, browse our catalogues or
-        tell us what you need.
-      </p>
+      <p className="text-surface-muted max-w-md leading-relaxed">{L.body}</p>
       <div className="mt-2 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-        <Button href="/catalogue" arrow block="mobile">
-          Browse catalogues
-        </Button>
+        {L.primary.label && L.primary.href && (
+          <Button href={L.primary.href} arrow block="mobile">
+            {L.primary.label}
+          </Button>
+        )}
         {whatsappBase && (
           <Button href={whatsappBase} external variant="outline" block="mobile">
-            Chat on WhatsApp
+            {L.whatsappLabel}
           </Button>
         )}
       </div>

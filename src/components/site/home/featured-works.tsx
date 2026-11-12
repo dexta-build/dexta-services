@@ -17,7 +17,13 @@ import { HOME_WORKS } from "@/lib/site/home-content";
  */
 const DESKTOP_SPANS = ["xl:col-span-2", "", "", "", "", "xl:col-span-2"];
 
-export function FeaturedWorks({ works }: { works: HomeWork[] }) {
+export function FeaturedWorks({
+  content = HOME_WORKS,
+  works,
+}: {
+  content?: typeof HOME_WORKS;
+  works: HomeWork[];
+}) {
   if (works.length === 0) return null;
 
   return (
@@ -25,19 +31,19 @@ export function FeaturedWorks({ works }: { works: HomeWork[] }) {
       <Container>
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="flex max-w-2xl flex-col gap-4">
-            <Eyebrow>{HOME_WORKS.eyebrow}</Eyebrow>
+            <Eyebrow>{content.eyebrow}</Eyebrow>
             <Heading size="h1">
-              <AccentText text={HOME_WORKS.title} />
+              <AccentText text={content.title} />
             </Heading>
           </div>
           <Button
-            href={HOME_WORKS.cta.href}
+            href={content.cta.href}
             variant="outline"
             size="lg"
             block="mobile"
             arrow
           >
-            {HOME_WORKS.cta.label}
+            {content.cta.label}
           </Button>
         </div>
 

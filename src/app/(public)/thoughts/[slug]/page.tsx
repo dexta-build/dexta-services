@@ -1,6 +1,10 @@
+import { ARTICLE_TEMPLATE } from "@/lib/content/pages/templates";
+import { loadPage } from "@/lib/content/store";
+import { THOUGHTS_PAGE } from "@/lib/content/pages/main";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { AccentText } from "@/components/site/accent-text";
 import { Button } from "@/components/site/button";
 import { ClosingCta } from "@/components/site/closing-cta";
@@ -15,8 +19,7 @@ import {
 } from "@/components/site/thoughts/article-tools";
 import { AuthorAvatar } from "@/components/site/thoughts/author-avatar";
 import { PostCard, formatPostDate } from "@/components/site/thoughts/post-card";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import { STOCK, stock } from "@/lib/site/stock-media";
+import { getWhatsApp } from "@/lib/content/site-settings";
 import { getThought } from "@/lib/site/thoughts-data";
 
 type Params = { slug: string };
@@ -54,14 +57,20 @@ export default async function ThoughtPage({
 }: {
   params: Promise<Params>;
 }) {
+  // Per request, so scheduled articles appear on time and previews work.
+  await connection();
   const { slug } = await params;
-  const [found, whatsappHref] = await Promise.all([
+  const [found, whatsappHref, template, thoughtsPage] = await Promise.all([
     getThought(slug),
-    getWhatsAppHref("Hello Dexta, I read one of your articles and..."),
+    getWhatsApp("thoughts"),
+    loadPage(ARTICLE_TEMPLATE),
+    loadPage(THOUGHTS_PAGE),
   ]);
   if (!found) notFound();
   const { post, related } = found;
   const path = `/thoughts/${post.slug}`;
+  const { data: templateContent, hidden } = template;
+  const L = templateContent.labels;
 
   const helpCard = (
     <div
@@ -69,11 +78,9 @@ export default async function ThoughtPage({
       className="bg-surface text-surface-fg flex flex-col gap-3 rounded-[10px] p-6"
     >
       <p className="dx-heading text-h3 leading-tight">
-        <AccentText text="Need a hand with *this*?" />
+        <AccentText text={L.helpTitle} />
       </p>
-      <p className="text-surface-muted text-sm leading-relaxed">
-        Our team can design, build or print it for you.
-      </p>
+      <p className="text-surface-muted text-sm leading-relaxed">{L.helpBody}</p>
       <Button
         href={whatsappHref ?? "/contact"}
         external={Boolean(whatsappHref)}
@@ -81,7 +88,7 @@ export default async function ThoughtPage({
         arrow
         className="mt-2"
       >
-        Talk to us
+        {L.helpButton}
       </Button>
     </div>
   );
@@ -123,7 +130,7 @@ export default async function ThoughtPage({
                   size={40}
                 />
                 <span>
-                  By <strong>{post.author.name}</strong>{" "}
+                  {L.by} <strong>{post.author.name}</strong>{" "}
                   <span className="text-surface-muted">{post.author.role}</span>
                 </span>
               </p>
@@ -136,7 +143,7 @@ export default async function ThoughtPage({
         <Container className="grid gap-10 pb-16 md:pb-24 lg:grid-cols-[15rem_1fr] lg:gap-14 xl:grid-cols-[17rem_1fr] xl:gap-20">
           <div className="hidden lg:block">
             <div className="sticky top-28 flex flex-col gap-8">
-              <TableOfContents items={post.toc} />
+              <TableOfContents items={post.toc} label={L.onThisPage} />
               {helpCard}
             </div>
           </div>
@@ -151,7 +158,7 @@ export default async function ThoughtPage({
             </div>
 
             <div className="border-surface-rule mt-10 border-b pb-8">
-              <p className="text-eyebrow text-surface-muted">TL;DR</p>
+              <p className="text-eyebrow text-surface-muted">{L.tldr}</p>
               <p className="mt-3 text-lg leading-relaxed md:text-xl">
                 {post.excerpt}
               </p>
@@ -185,7 +192,7 @@ export default async function ThoughtPage({
                     size={56}
                   />
                   <div>
-                    <p className="text-surface-muted text-xs">Written by</p>
+                    <p className="text-surface-muted text-xs">{L.writtenBy}</p>
                     <p className="font-bold">{post.author.name}</p>
                     <p className="text-surface-muted text-sm">
                       {post.author.role}
@@ -208,33 +215,37 @@ export default async function ThoughtPage({
           <Container>
             <div className="mb-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div className="flex flex-col gap-3">
-                <Eyebrow>Keep reading</Eyebrow>
+                {L.relatedEyebrow && <Eyebrow>{L.relatedEyebrow}</Eyebrow>}
                 <Heading size="h2">
-                  <AccentText text="More *thoughts*" />
+                  <AccentText text={L.relatedTitle} />
                 </Heading>
               </div>
               <Link
                 href="/thoughts"
                 className="dx-link self-start text-sm font-bold md:self-auto"
               >
-                See all thoughts
+                {L.seeAll}
               </Link>
             </div>
             <div className="grid gap-x-6 gap-y-12 md:grid-cols-2 xl:grid-cols-3">
               {related.map((p) => (
-                <PostCard key={p.id} post={p} />
+                <PostCard
+                  key={p.id}
+                  post={p}
+                  readLabel={thoughtsPage.data.browse.readTime}
+                />
               ))}
             </div>
           </Container>
         </Section>
       )}
 
-      <ClosingCta
-        title="Got a project in mind? *Let's talk*"
-        body="Tell us what you're working on and we'll share how we can help."
-        image={stock(STOCK.teamLaptopCasual, 2000)}
-        whatsappHref={whatsappHref}
-      />
+      {!hidden.closing && (
+        <ClosingCta
+          content={templateContent.closing}
+          whatsappHref={whatsappHref}
+        />
+      )}
     </main>
   );
 }

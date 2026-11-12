@@ -1,3 +1,7 @@
+import { ARTICLE_TEMPLATE } from "@/lib/content/pages/templates";
+import { loadPage } from "@/lib/content/store";
+import { THOUGHTS_PAGE } from "@/lib/content/pages/main";
+import { fillIn } from "@/lib/site/thoughts-labels";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,8 +15,7 @@ import {
   ThoughtsBrowser,
   type ThoughtSort,
 } from "@/components/site/thoughts/thoughts-browser";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import { STOCK, stock } from "@/lib/site/stock-media";
+import { getWhatsApp } from "@/lib/content/site-settings";
 import { getThoughtCategories, getThoughts } from "@/lib/site/thoughts-data";
 
 type Params = { slug: string };
@@ -49,13 +52,17 @@ export default async function ThoughtCategoryPage({
       searchParams,
       getThoughts(),
       getThoughtCategories(),
-      getWhatsAppHref("Hello Dexta, I read one of your articles and..."),
+      getWhatsApp("thoughts"),
     ],
   );
   const category = categories.find((c) => c.slug === slug);
   if (!category) notFound();
   const count = posts.filter((p) => p.category?.slug === slug).length;
 
+  const [{ data: templateContent }, { data: thoughtsPage }] = await Promise.all(
+    [loadPage(ARTICLE_TEMPLATE), loadPage(THOUGHTS_PAGE)],
+  );
+  const L = thoughtsPage.browse;
   return (
     <main className="dx-site">
       <section
@@ -80,7 +87,7 @@ export default async function ThoughtCategoryPage({
             </ol>
           </nav>
           <Eyebrow>
-            {count} {count === 1 ? "article" : "articles"}
+            {fillIn(count === 1 ? L.articleOne : L.articleMany, { count })}
           </Eyebrow>
           <Heading size="display" as="h1">
             <em>{category.name}</em>
@@ -100,6 +107,7 @@ export default async function ThoughtCategoryPage({
             categories={categories}
             basePath={`/thoughts/category/${slug}`}
             lockedCategory={slug}
+            labels={L}
             initialQuery={one(search.q) ?? ""}
             initialSort={
               (one(search.sort) === "oldest"
@@ -111,9 +119,7 @@ export default async function ThoughtCategoryPage({
       </Section>
 
       <ClosingCta
-        title="Got a project in mind? *Let's talk*"
-        body="Tell us what you're working on and we'll share how we can help."
-        image={stock(STOCK.teamLaptopCasual, 2000)}
+        content={templateContent.closing}
         whatsappHref={whatsappHref}
       />
     </main>

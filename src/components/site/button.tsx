@@ -17,8 +17,14 @@ export const buttonVariants = cva(
         outline:
           "border border-surface-fg/80 text-surface-fg hover:bg-surface-fg hover:text-surface",
         ghost: "text-surface-fg h-auto! px-0!",
+        /** Quiet button on a tinted background (admin toolbars). */
+        subtle: "bg-surface-fg/8 text-surface-fg hover:bg-surface-fg/14",
+        /** Destructive actions. */
+        danger:
+          "bg-[#c2410c] text-white hover:shadow-[0_10px_30px_-10px_#c2410c]",
       },
       size: {
+        sm: "h-9 px-4 text-[0.8125rem]",
         md: "h-12 px-6 text-sm",
         lg: "h-14 px-8 text-[0.9375rem]",
       },

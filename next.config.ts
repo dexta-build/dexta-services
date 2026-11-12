@@ -51,7 +51,8 @@ const nextConfig: NextConfig = {
       // The old portfolio page moved to /works. Query strings carry over,
       // so /projects?tab=build lands on the Build filter.
       { source: "/projects", destination: "/works", statusCode: 301 },
-      // The team now lives on the About page; profiles stay at /team/[slug].
+      // The team now lives on the About page; profiles are at /[slug]
+      // (old /team/[slug] links redirect from src/app/(public)/team/[slug]).
       { source: "/team", destination: "/about#team", statusCode: 301 },
     ];
   },

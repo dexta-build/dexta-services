@@ -24,11 +24,7 @@ export function RelatedServices({
             <AccentText text={title} />
           </Heading>
         </div>
-        <BentoGrid
-          items={items.slice(0, 3)}
-          columns={3}
-          className="mt-10 md:mt-14"
-        />
+        <BentoGrid items={items} columns={3} className="mt-10 md:mt-14" />
       </Container>
     </Section>
   );

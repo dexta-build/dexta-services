@@ -4,6 +4,7 @@ import { AccentText } from "../accent-text";
 import { MediaAsset } from "../media-asset";
 import { AuthorAvatar } from "./author-avatar";
 import type { ThoughtSummary } from "@/lib/site/thoughts-data";
+import { THOUGHTS_BROWSE_LABELS, fillIn } from "@/lib/site/thoughts-labels";
 
 export function formatPostDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -17,9 +18,12 @@ export function formatPostDate(iso: string) {
 export function PostMeta({
   post,
   className,
+  readLabel = THOUGHTS_BROWSE_LABELS.readTime,
 }: {
   post: Pick<ThoughtSummary, "category" | "readingMinutes">;
   className?: string;
+  /** "{n} min to read" */
+  readLabel?: string;
 }) {
   return (
     <p
@@ -31,7 +35,7 @@ export function PostMeta({
       {post.category && <span>{post.category.name}</span>}
       {post.category && <span aria-hidden>•</span>}
       <span className="normal-case tracking-normal font-normal text-xs">
-        {post.readingMinutes} min to read
+        {fillIn(readLabel, { n: post.readingMinutes })}
       </span>
     </p>
   );
@@ -63,11 +67,13 @@ export function PostAuthor({
 export function PostCard({
   post,
   size = "md",
+  readLabel,
   showAuthor = false,
   priority = false,
 }: {
   post: ThoughtSummary;
   size?: "md" | "lg";
+  readLabel?: string;
   showAuthor?: boolean;
   priority?: boolean;
 }) {
@@ -97,7 +103,7 @@ export function PostCard({
         </span>
       </span>
       <span className="flex flex-col gap-2.5">
-        <PostMeta post={post} />
+        <PostMeta post={post} readLabel={readLabel} />
         <span
           className={cn(
             "dx-heading leading-snug transition-colors group-hover:text-brand",

@@ -6,15 +6,9 @@ import { useEffect, useState } from "react";
 import { Accordion, Dialog } from "radix-ui";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  CATALOGUES,
-  MAIN_LINKS,
-  PRIMARY_CTA,
-  RESOURCES,
-  SERVICE_GROUPS,
-} from "@/lib/site/navigation";
 import type { ContactSocialLinkData } from "@/lib/contact-defaults";
 import { CONTACT_SOCIAL_PLATFORM_META } from "@/lib/contact-socials";
+import { asIcon, pillFor, useSiteNav } from "./nav-context";
 import { Button } from "../button";
 import { Logo } from "./logo";
 import { GroupPill, MenuRow } from "./mega-menu";
@@ -34,6 +28,7 @@ export function MobileMenu({
   whatsappHref,
   socials,
 }: MobileMenuProps) {
+  const nav = useSiteNav();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const close = () => setOpen(false);
@@ -85,12 +80,15 @@ export function MobileMenu({
             className="flex w-full flex-1 flex-col overflow-y-auto dx-no-scrollbar px-4 pt-4 pb-6 md:px-8"
           >
             <Accordion.Root type="single" collapsible>
-              <MenuSection value="services" label="Services">
+              <MenuSection value="services" label={nav.labels.services}>
                 <div className="flex flex-col gap-6 pb-4">
-                  {SERVICE_GROUPS.map((group) => (
-                    <div key={group.key} className="flex flex-col gap-2">
+                  {nav.serviceGroups.map((group, gi) => (
+                    <div
+                      key={group.key ?? group.href}
+                      className="flex flex-col gap-2"
+                    >
                       <GroupPill
-                        group={group}
+                        group={{ ...group, pillClass: pillFor(group, gi) }}
                         onNavigate={close}
                         className="self-start text-xl"
                       />
@@ -108,15 +106,15 @@ export function MobileMenu({
                 </div>
               </MenuSection>
 
-              <MenuSection value="catalogues" label="Catalogues">
+              <MenuSection value="catalogues" label={nav.labels.catalogues}>
                 <div className="flex flex-col pb-4">
-                  {CATALOGUES.map((c) => (
+                  {nav.catalogues.map((c) => (
                     <MenuRow
                       key={c.slug}
                       href={c.href}
                       title={c.title}
                       description={c.description}
-                      icon={c.icon}
+                      icon={asIcon(c.icon)}
                       onNavigate={close}
                     />
                   ))}
@@ -125,14 +123,14 @@ export function MobileMenu({
                     onClick={close}
                     className="dx-link mt-3 self-start text-sm font-bold"
                   >
-                    Browse all catalogues
+                    {nav.labels.cataloguesAll ?? "Browse all catalogues"}
                   </Link>
                 </div>
               </MenuSection>
 
-              <MenuSection value="resources" label="Resources">
+              <MenuSection value="resources" label={nav.labels.resources}>
                 <div className="flex flex-col pb-4">
-                  {RESOURCES.map((r) => (
+                  {nav.resources.map((r) => (
                     <MenuRow
                       key={r.href}
                       href={r.href}
@@ -146,7 +144,7 @@ export function MobileMenu({
               </MenuSection>
             </Accordion.Root>
 
-            {MAIN_LINKS.map((link) => (
+            {nav.mainLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -159,8 +157,8 @@ export function MobileMenu({
             ))}
 
             <div className="mt-8 flex flex-col gap-3">
-              <Button href={PRIMARY_CTA.href} block size="lg" onClick={close}>
-                {PRIMARY_CTA.label}
+              <Button href={nav.cta.href} block size="lg" onClick={close}>
+                {nav.cta.label}
               </Button>
               {whatsappHref && (
                 <Button

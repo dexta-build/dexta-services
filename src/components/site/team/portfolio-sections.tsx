@@ -126,7 +126,13 @@ export function LanguageList({ languages }: { languages: TeamLanguage[] }) {
 /* ---------------- experience ---------------- */
 
 /** Work history as a vertical timeline, newest first. */
-export function ExperienceTimeline({ items }: { items: TeamExperience[] }) {
+export function ExperienceTimeline({
+  items,
+  presentLabel = "Present",
+}: {
+  items: TeamExperience[];
+  presentLabel?: string;
+}) {
   return (
     <ol className="border-surface-rule relative ml-2 border-l">
       {items.map((e, i) => (
@@ -147,7 +153,7 @@ export function ExperienceTimeline({ items }: { items: TeamExperience[] }) {
             <p className="text-eyebrow text-surface-muted">
               {e.start}
               {" – "}
-              {e.end ?? "Present"}
+              {e.end ?? presentLabel}
             </p>
             <h3 className="text-h3 mt-2">{e.role}</h3>
             {e.company && (
@@ -339,7 +345,13 @@ export function SkillGroupCard({
 }
 
 /** Spoken languages as a card that sits alongside the skill groups. */
-export function LanguagesCard({ languages }: { languages: TeamLanguage[] }) {
+export function LanguagesCard({
+  languages,
+  title = "Languages",
+}: {
+  languages: TeamLanguage[];
+  title?: string;
+}) {
   return (
     <RevealItem className="flex h-full flex-col gap-6 rounded-[10px] bg-white p-6 ring-1 ring-black/5 md:p-7">
       <div className="flex items-center gap-3">
@@ -349,7 +361,7 @@ export function LanguagesCard({ languages }: { languages: TeamLanguage[] }) {
         >
           <LanguagesIcon aria-hidden className="size-5" />
         </span>
-        <h3 className="text-lg leading-snug font-bold">Languages</h3>
+        <h3 className="text-lg leading-snug font-bold">{title}</h3>
       </div>
       <LanguageList languages={languages} />
     </RevealItem>

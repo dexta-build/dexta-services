@@ -10,18 +10,22 @@ import { HOME_STATS } from "@/lib/site/home-content";
  * "Success in numbers". Mobile: number above its label. Tablet: 2×2 with
  * the number on top. Desktop: label on the left, big number on the right.
  */
-export function StatsBand() {
+export function StatsBand({
+  content = HOME_STATS,
+}: {
+  content?: typeof HOME_STATS;
+} = {}) {
   return (
     <Section surface="white">
       <Container>
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-          <Eyebrow>{HOME_STATS.eyebrow}</Eyebrow>
+          <Eyebrow>{content.eyebrow}</Eyebrow>
           <Heading size="h1">
-            <AccentText text={HOME_STATS.title} />
+            <AccentText text={content.title} />
           </Heading>
         </div>
         <dl className="mt-10 grid md:mt-16 md:grid-cols-2 md:gap-x-10 xl:gap-x-12">
-          {HOME_STATS.items.map((stat) => (
+          {content.items.map((stat) => (
             <div
               key={stat.label}
               className="border-surface-rule flex flex-col-reverse gap-4 border-b py-8 md:py-10 xl:flex-row xl:items-center xl:justify-between xl:gap-8"

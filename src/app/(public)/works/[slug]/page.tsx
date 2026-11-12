@@ -1,3 +1,5 @@
+import { WORK_TEMPLATE } from "@/lib/content/pages/templates";
+import { loadPage } from "@/lib/content/store";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,8 +15,7 @@ import { Section } from "@/components/site/section";
 import { TagChip } from "@/components/site/tag-chip";
 import { MoreWorks } from "@/components/site/works/more-works";
 import { WorkGalleryGrid } from "@/components/site/works/work-gallery-grid";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import { STOCK, stock } from "@/lib/site/stock-media";
+import { getWhatsApp } from "@/lib/content/site-settings";
 import { getWork, getWorks, PILLAR_LABEL } from "@/lib/site/works-data";
 
 type Params = { slug: string };
@@ -51,9 +52,7 @@ export default async function WorkPage({
   const [work, works] = await Promise.all([getWork(slug), getWorks()]);
   if (!work) notFound();
 
-  const whatsappHref = await getWhatsAppHref(
-    `Hello Dexta, I saw "${work.title}" and I'd like something similar.`,
-  );
+  const whatsappHref = await getWhatsApp("work", { title: work.title });
   // Other projects: same service first.
   const more = [
     ...works.filter((w) => w.id !== work.id && w.pillar === work.pillar),
@@ -62,6 +61,7 @@ export default async function WorkPage({
   const [cover, ...rest] = work.media;
   const serviceHref = `/services/${work.pillar.toLowerCase()}`;
 
+  const { data: templateContent } = await loadPage(WORK_TEMPLATE);
   return (
     <main className="dx-site">
       <Section spacing="sm" className="pt-10 md:pt-14">
@@ -112,8 +112,13 @@ export default async function WorkPage({
                 </div>
               )}
               <div className="flex flex-col gap-3 md:flex-row">
-                <Button href="/contact" size="lg" block="mobile" arrow>
-                  Start a similar project
+                <Button
+                  href={templateContent.labels.primary.href}
+                  size="lg"
+                  block="mobile"
+                  arrow
+                >
+                  {templateContent.labels.primary.label}
                 </Button>
                 {work.websiteUrl && (
                   <Button
@@ -123,7 +128,7 @@ export default async function WorkPage({
                     size="lg"
                     block="mobile"
                   >
-                    Visit website
+                    {templateContent.labels.websiteLabel}
                   </Button>
                 )}
               </div>
@@ -148,13 +153,15 @@ export default async function WorkPage({
         </Section>
       )}
 
-      <MoreWorks works={more} />
+      <MoreWorks
+        works={more}
+        eyebrow={templateContent.labels.moreEyebrow}
+        title={templateContent.labels.moreTitle}
+      />
 
       <ClosingCta
+        content={templateContent.closing}
         variant="card"
-        title="Want something *like this*?"
-        body="Tell us what you're planning and we'll make it yours."
-        image={stock(STOCK.teamWhiteboard, 1800, 900)}
         whatsappHref={whatsappHref}
       />
     </main>

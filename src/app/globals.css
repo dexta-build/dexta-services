@@ -482,6 +482,96 @@ body {
     background: none;
     padding: 0;
   }
+  /* Article editor (admin): placeholder, selected image/video, video block */
+  .dx-article.ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: var(--surface-muted);
+  }
+  .dx-article.ProseMirror .ProseMirror-selectednode {
+    outline: 3px solid var(--color-brand-cyan);
+    outline-offset: 3px;
+    border-radius: 10px;
+  }
+  .dx-article.ProseMirror .dx-editor-embed {
+    cursor: grab;
+  }
+  /* Email editor: spacing and size as the email will show them */
+  .dx-article.dx-email-body {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .dx-article.dx-email-body > * + * {
+    margin-top: 0.85em;
+  }
+  .dx-article.dx-email-body h2 {
+    margin-top: 1.3em;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .dx-article.dx-email-body blockquote {
+    font-size: 1em;
+    margin: 0.85em 0;
+  }
+  /* Formatting editor (admin): styled copy for We Brand Schools */
+  .dx-formatted {
+    color: #1f2937;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  .dx-formatted p {
+    margin: 0 0 0.85rem;
+  }
+  .dx-formatted > :last-child {
+    margin-bottom: 0;
+  }
+  .dx-formatted :is(h1, h2, h3, h4) {
+    color: #111827;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.75rem;
+  }
+  .dx-formatted h1 {
+    font-size: 2rem;
+  }
+  .dx-formatted h2 {
+    font-size: 1.6rem;
+  }
+  .dx-formatted h3 {
+    font-size: 1.3rem;
+  }
+  .dx-formatted h4 {
+    font-size: 1.1rem;
+  }
+  .dx-formatted :is(ul, ol) {
+    margin: 0 0 0.85rem 1.25rem;
+    padding: 0;
+  }
+  .dx-formatted ul {
+    list-style: disc;
+  }
+  .dx-formatted ol {
+    list-style: decimal;
+  }
+  .dx-formatted blockquote {
+    border-left: 3px solid #0284c7;
+    color: #374151;
+    margin: 0 0 0.85rem;
+    padding-left: 1rem;
+  }
+  .dx-formatted a {
+    color: #0369a1;
+    text-decoration: underline;
+  }
+  .dx-formatted.ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: var(--surface-muted);
+  }
   .dx-article table {
     width: 100%;
     border-collapse: collapse;

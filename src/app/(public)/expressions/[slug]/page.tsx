@@ -1,3 +1,5 @@
+import { EXPRESSION_TEMPLATE } from "@/lib/content/pages/templates";
+import { loadPage } from "@/lib/content/store";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,8 +18,7 @@ import {
   TableOfContents,
 } from "@/components/site/thoughts/article-tools";
 import { getExpression, getExpressions } from "@/lib/site/expressions-data";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import { STOCK, stock } from "@/lib/site/stock-media";
+import { getWhatsApp } from "@/lib/content/site-settings";
 
 type Params = { slug: string };
 
@@ -55,20 +56,24 @@ export default async function ExpressionPage({
   const { slug } = await params;
   const [found, whatsappHref] = await Promise.all([
     getExpression(slug),
-    getWhatsAppHref("Hello Dexta, I have a product idea I'd like to build."),
+    getWhatsApp("expressions"),
   ]);
   if (!found) notFound();
   const { expression: e, html, toc, next } = found;
+
+  const { data: templateContent } = await loadPage(EXPRESSION_TEMPLATE);
+  const labels = templateContent.labels;
+  const visit = labels.visitLabel.replace("{host}", e.host);
 
   const visitCard = (
     <div
       data-surface={e.surface}
       className="bg-surface text-surface-fg flex flex-col gap-3 rounded-[10px] p-6"
     >
-      <p className="text-eyebrow text-surface-muted">See it live</p>
+      <p className="text-eyebrow text-surface-muted">{labels.visitEyebrow}</p>
       <p className="text-h3 leading-tight">{e.name}</p>
       <Button href={e.websiteUrl} external block arrow className="mt-2">
-        Visit {e.host}
+        {visit}
       </Button>
     </div>
   );
@@ -107,7 +112,7 @@ export default async function ExpressionPage({
             </p>
             <div className="flex flex-col items-center gap-4 sm:flex-row">
               <Button href={e.websiteUrl} external arrow>
-                Visit {e.host}
+                {visit}
               </Button>
               <ShareButtons
                 title={`${e.name} by Dexta`}
@@ -178,9 +183,50 @@ export default async function ExpressionPage({
               dangerouslySetInnerHTML={{ __html: html }}
             />
 
+            {e.gallery.length > 0 && (
+              <section
+                aria-label={labels.galleryTitle}
+                className="border-surface-rule mt-12 border-t pt-8"
+              >
+                <p className="text-eyebrow text-surface-muted">
+                  {labels.galleryTitle}
+                </p>
+                <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {e.gallery.map((src, i) => (
+                    <li
+                      key={src}
+                      className={
+                        e.gallery.length % 2 === 1 && i === 0
+                          ? "sm:col-span-2"
+                          : undefined
+                      }
+                    >
+                      <a
+                        href={src}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-canvas block overflow-hidden rounded-[10px] outline-offset-4"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- screenshots from any host, any shape */}
+                        <img
+                          src={src}
+                          alt={`${e.name} screenshot ${i + 1} of ${e.gallery.length}`}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-auto w-full transition-transform duration-500 hover:scale-[1.02]"
+                        />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {e.features.length > 0 && (
               <div className="border-surface-rule mt-12 border-t pt-8">
-                <p className="text-eyebrow text-surface-muted">Key features</p>
+                <p className="text-eyebrow text-surface-muted">
+                  {labels.featuresTitle}
+                </p>
                 <ul className="mt-4 grid gap-x-8 sm:grid-cols-2">
                   {e.features.map((f) => (
                     <li
@@ -211,14 +257,16 @@ export default async function ExpressionPage({
         >
           <Container className="flex flex-col gap-3 py-14 md:flex-row md:items-end md:justify-between md:py-20">
             <div className="flex flex-col gap-3">
-              <p className="text-eyebrow text-surface-muted">Next expression</p>
+              <p className="text-eyebrow text-surface-muted">
+                {labels.nextEyebrow}
+              </p>
               <p className="text-h1">{next.name}</p>
               <p className="dx-heading text-h3">
                 <AccentText text={next.tagline} />
               </p>
             </div>
             <span className="inline-flex items-center gap-2 text-sm font-bold">
-              Read the story
+              {labels.nextLabel}
               <ArrowUpRight
                 aria-hidden
                 className="size-5 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
@@ -229,9 +277,7 @@ export default async function ExpressionPage({
       )}
 
       <ClosingCta
-        title="Have a product idea? *We'll build it*"
-        body="From first sketch to launch and beyond, we design, build and grow digital products with you."
-        image={stock(STOCK.developerWoman, 2000)}
+        content={templateContent.closing}
         whatsappHref={whatsappHref}
       />
     </main>

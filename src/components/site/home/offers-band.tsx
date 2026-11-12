@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Container } from "../container";
+import { AccentText } from "../accent-text";
 import { Eyebrow } from "../eyebrow";
 import { Heading } from "../heading";
 import { Section, type Surface } from "../section";
@@ -19,9 +20,21 @@ const PASTELS: Surface[] = ["ice", "mint", "lilac", "gold", "coral", "stone"];
  * running (including when the last countdown reaches zero).
  */
 export function OffersBand({
+  content = {
+    eyebrow: "Limited-time offers",
+    title: "Special offers, *while they last*",
+    linkLabel: "See all offers",
+  },
   offers,
   serverNow,
 }: {
+  content?: {
+    eyebrow: string;
+    title: string;
+    linkLabel: string;
+    badgeFallback?: string;
+    customQuoteLabel?: string;
+  };
   /** Offers with an end date, soonest first. */
   offers: OfferData[];
   serverNow: number;
@@ -38,16 +51,16 @@ export function OffersBand({
       <Container>
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="flex flex-col gap-3">
-            <Eyebrow>Limited-time offers</Eyebrow>
+            <Eyebrow>{content.eyebrow}</Eyebrow>
             <Heading size="h2">
-              Special offers, <em>while they last</em>
+              <AccentText text={content.title} />
             </Heading>
           </div>
           <Link
             href="/offers"
             className="dx-link self-start text-sm font-bold md:self-auto"
           >
-            See all offers
+            {content.linkLabel}
           </Link>
         </div>
         <div
@@ -68,7 +81,7 @@ export function OffersBand({
               >
                 <span className="flex items-center justify-between gap-2">
                   <span className="border-surface-fg/25 truncate rounded-full border px-2.5 py-1 text-[0.6875rem] font-bold tracking-[0.06em] uppercase">
-                    {offer.badge ?? "Offer"}
+                    {offer.badge ?? content.badgeFallback ?? "Offer"}
                   </span>
                   <span className="bg-surface-fg/8 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold">
                     <Clock aria-hidden className="size-3.5" />
@@ -83,7 +96,7 @@ export function OffersBand({
                   <span className="text-2xl font-bold tabular-nums">
                     {offer.priceNGN != null
                       ? formatMoney(offer.priceNGN, "NGN")
-                      : "Custom quote"}
+                      : (content.customQuoteLabel ?? "Custom quote")}
                     {offer.priceNGN != null && offer.priceNote && (
                       <span className="text-surface-muted ml-1.5 text-sm font-normal">
                         {offer.priceNote}

@@ -427,12 +427,9 @@ export const HOME_SPLITS = [
 ];
 
 /**
- * Sample work. The homepage hero and the Works pages show projects; until
- * real work is uploaded (the portfolio images in the database are currently
- * missing), they use these sample projects built from stock photos.
- * Set to false to use the admin's portfolio everywhere instead.
+ * Sample projects: the Works page shows these while its "Projects gallery"
+ * section is set to the samples, and they seed the hero showcase.
  */
-export const HERO_USE_SAMPLE_PROJECTS = true;
 
 export type SampleProject = {
   id: string;

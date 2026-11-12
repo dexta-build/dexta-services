@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  MAIN_LINKS,
-  PRIMARY_CTA,
-  RESOURCES,
-  RESOURCES_AFTER,
   headerSurfaceFor,
   isActivePath,
   type NavLink,
@@ -22,38 +18,51 @@ import { Container } from "../container";
 import { Logo } from "./logo";
 import { CataloguesPanel, ResourcesPanel, ServicesPanel } from "./mega-menu";
 import { MobileMenu } from "./mobile-menu";
+import { useSiteNav, type SiteNav } from "./nav-context";
 
 type MenuKey = "services" | "catalogues" | "resources";
 
 type Menu = { key: MenuKey; label: string; bases: string[] };
 
-const MENUS: Record<MenuKey, Menu> = {
-  services: { key: "services", label: "Services", bases: ["/services"] },
-  catalogues: {
-    key: "catalogues",
-    label: "Catalogues",
-    bases: ["/catalogue"],
-  },
-  resources: {
-    key: "resources",
-    label: "Resources",
-    // Works keeps its own link highlighted, so it isn't counted here.
-    bases: RESOURCES.map((r) => r.href).filter((h) => h !== RESOURCES_AFTER),
-  },
-};
+/** Menus and desktop order (Resources right after its link), from settings. */
+function buildNav(nav: SiteNav) {
+  const menus: Record<MenuKey, Menu> = {
+    services: {
+      key: "services",
+      label: nav.labels.services,
+      bases: ["/services"],
+    },
+    catalogues: {
+      key: "catalogues",
+      label: nav.labels.catalogues,
+      bases: ["/catalogue"],
+    },
+    resources: {
+      key: "resources",
+      label: nav.labels.resources,
+      // The link it follows keeps its own highlight, so it isn't counted here.
+      bases: nav.resources
+        .map((r) => r.href)
+        .filter((h) => h !== nav.resourcesAfter),
+    },
+  };
+  const hasAnchor = nav.mainLinks.some((l) => l.href === nav.resourcesAfter);
+  const order: NavItem[] = [
+    { menu: "services" },
+    { menu: "catalogues" },
+    ...nav.mainLinks.flatMap((link): NavItem[] =>
+      link.href === nav.resourcesAfter
+        ? [{ link }, { menu: "resources" }]
+        : [{ link }],
+    ),
+    ...(hasAnchor || nav.resources.length === 0
+      ? []
+      : [{ menu: "resources" } as NavItem]),
+  ];
+  return { menus, order };
+}
 
 type NavItem = { menu: MenuKey } | { link: NavLink };
-
-/** Desktop order: menus and links, with Resources right after Works. */
-const NAV_ORDER: NavItem[] = [
-  { menu: "services" },
-  { menu: "catalogues" },
-  ...MAIN_LINKS.flatMap((link): NavItem[] =>
-    link.href === RESOURCES_AFTER
-      ? [{ link }, { menu: "resources" }]
-      : [{ link }],
-  ),
-];
 
 const CLOSE_DELAY_MS = 140;
 
@@ -76,6 +85,11 @@ export function SiteHeader({
 }: SiteHeaderProps) {
   const pathname = usePathname();
   const surface = headerSurfaceFor(pathname);
+  const siteNav = useSiteNav();
+  const { menus: MENUS, order: NAV_ORDER } = useMemo(
+    () => buildNav(siteNav),
+    [siteNav],
+  );
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [focusPanel, setFocusPanel] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -209,11 +223,11 @@ export function SiteHeader({
 
           <div className="flex items-center gap-3">
             <Button
-              href={PRIMARY_CTA.href}
+              href={siteNav.cta.href}
               className="hidden xl:inline-flex"
               onMouseEnter={scheduleClose}
             >
-              {PRIMARY_CTA.label}
+              {siteNav.cta.label}
             </Button>
             <MobileMenu
               surface={surface}

@@ -13,16 +13,16 @@ import {
   WorksGallery,
   type WorksFilter,
 } from "@/components/site/works/works-gallery";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import { SHOWREEL_VIDEO, STOCK, stock } from "@/lib/site/stock-media";
+import { WORKS_PAGE } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import { getWhatsApp } from "@/lib/content/site-settings";
+import { loadPage } from "@/lib/content/store";
+import { stock } from "@/lib/site/stock-media";
 import { getBrands, getWorks } from "@/lib/site/works-data";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/works" },
-  title: "Works",
-  description:
-    "Recent design, software and print projects by Dexta, for brands, businesses and life's big moments.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(WORKS_PAGE);
+}
 
 const FILTERS: WorksFilter[] = ["all", "design", "build", "print"];
 
@@ -40,12 +40,11 @@ export default async function WorksPage({
   // ?service= is the new name; ?tab= keeps old /projects links working.
   const initialFilter = toFilter(params.service ?? params.tab);
 
-  const [works, brands, whatsappHref] = await Promise.all([
+  const [works, brands, whatsappHref, { data: c, hidden }] = await Promise.all([
     getWorks(),
     getBrands(),
-    getWhatsAppHref(
-      "Hello Dexta, I saw your work and I'd like to start a project.",
-    ),
+    getWhatsApp("works"),
+    loadPage(WORKS_PAGE),
   ]);
 
   const teaserImages = works
@@ -60,32 +59,24 @@ export default async function WorksPage({
         <Container>
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="flex max-w-3xl flex-col gap-5">
-              <Eyebrow>Our work</Eyebrow>
+              {c.hero.eyebrow && <Eyebrow>{c.hero.eyebrow}</Eyebrow>}
               <Heading size="display" as="h1">
-                <AccentText text="Work we're *proud to share*" />
+                <AccentText text={c.hero.title} />
               </Heading>
             </div>
             <p className="text-lead text-surface-muted max-w-md">
-              Brand identities, websites, apps and beautiful print, made for
-              businesses, families and the moments they care about.
+              {c.hero.body}
             </p>
           </div>
           <Reveal className="mt-10 md:mt-14">
             <ShowreelTeaser
-              words={["design", "build", "print"]}
+              words={c.hero.words}
               images={
                 teaserImages.length >= 3
                   ? teaserImages
-                  : [
-                      STOCK.weddingCouple,
-                      STOCK.designerTablet,
-                      STOCK.developerScreens,
-                      STOCK.goldRibbons,
-                      STOCK.colourSwatches,
-                      STOCK.eventStage,
-                    ].map((id) => stock(id, 900, 900))
+                  : c.hero.images.map((id) => stock(id, 900, 900))
               }
-              video={SHOWREEL_VIDEO}
+              video={c.hero.video}
               className="aspect-[4/3] md:aspect-[21/9]"
             />
           </Reveal>
@@ -93,29 +84,30 @@ export default async function WorksPage({
       </Section>
 
       {/* Statement + client logos */}
-      <Section spacing="sm" className="pb-0 md:pb-0 xl:pb-0">
-        <Container size="narrow" className="text-center">
-          <Heading size="h2" as="p">
-            We help ambitious brands and families{" "}
-            <em>make every moment count</em>, from first sketch to final
-            delivery.
-          </Heading>
-        </Container>
-      </Section>
+      {!hidden.statement && (
+        <Section spacing="sm" className="pb-0 md:pb-0 xl:pb-0">
+          <Container size="narrow" className="text-center">
+            <Heading size="h2" as="p">
+              <AccentText text={c.statement.text} />
+            </Heading>
+          </Container>
+        </Section>
+      )}
       <LogoStrip brands={brands} />
 
       <div className="pt-16 md:pt-20">
-        <WorksGallery works={works} initialFilter={initialFilter} />
+        <WorksGallery
+          works={works}
+          initialFilter={initialFilter}
+          labels={c.projects}
+        />
       </div>
 
-      <BrandsWall brands={brands} />
+      {!hidden.brands && <BrandsWall brands={brands} content={c.brands} />}
 
-      <ClosingCta
-        title="Love what you see? *Let's make yours next*"
-        body="Tell us about your brand, event or idea. We'll take it from first sketch to finished piece."
-        image={stock(STOCK.teamLaptopCasual, 2000)}
-        whatsappHref={whatsappHref}
-      />
+      {!hidden.closing && (
+        <ClosingCta content={c.closing} whatsappHref={whatsappHref} />
+      )}
     </main>
   );
 }

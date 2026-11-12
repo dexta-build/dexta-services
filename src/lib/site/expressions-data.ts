@@ -40,6 +40,8 @@ export type Expression = {
   icon: string | null;
   cover: string;
   mobile: string | null;
+  /** More screenshots for the product page gallery. */
+  gallery: string[];
   features: string[];
   facts: { value: string; label: string }[];
   story: string;
@@ -95,15 +97,27 @@ function defaults(): Expression[] {
     surface: surface(e.color, i),
     logo: null,
     icon: e.icon,
+    gallery: [],
   }));
 }
 
 async function readExpressions(): Promise<Expression[]> {
   try {
-    const rows = await prisma.expression.findMany({
+    const query = {
       where: { isVisible: true },
       orderBy: { position: "asc" },
-    });
+    } as const;
+    // Before the gallery column is pushed, read without it.
+    const rows = await prisma.expression
+      .findMany(query)
+      .catch(
+        (): Promise<
+          (Omit<
+            Awaited<ReturnType<typeof prisma.expression.findMany>>[number],
+            "gallery"
+          > & { gallery?: string })[]
+        > => prisma.expression.findMany({ ...query, omit: { gallery: true } }),
+      );
     if (rows.length === 0) return defaults();
     return rows.map((r, i) => {
       const fallback = EXPRESSION_DEFAULTS.find(
@@ -129,6 +143,9 @@ async function readExpressions(): Promise<Expression[]> {
         mobile: r.mobilePublicId
           ? imageUrl(r.mobilePublicId, 780)
           : (fallback?.mobile ?? null),
+        gallery: parseJson<string[]>(r.gallery, [])
+          .filter(Boolean)
+          .map((g) => imageUrl(g, 1600)),
         features: parseJson<string[]>(r.features, fallback?.features ?? []),
         facts: parseJson(r.facts, fallback?.facts ?? []),
         story: r.story || fallback?.story || `<p>${r.description}</p>`,

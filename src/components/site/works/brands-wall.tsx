@@ -11,15 +11,24 @@ import type { WorkBrand } from "@/lib/site/works-data";
  * A wall of logos: Dexta's own products first (marked "Built by Dexta"),
  * then clients. Hidden when there's nothing to show.
  */
-export function BrandsWall({ brands }: { brands: WorkBrand[] }) {
+export function BrandsWall({
+  brands,
+  content = {
+    eyebrow: "Products & clients",
+    title: "Brands we've *built and worked with*",
+  },
+}: {
+  brands: WorkBrand[];
+  content?: { eyebrow: string; title: string };
+}) {
   if (brands.length === 0) return null;
   return (
     <Section surface="white">
       <Container>
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-          <Eyebrow>Products & clients</Eyebrow>
+          <Eyebrow>{content.eyebrow}</Eyebrow>
           <Heading size="h1">
-            <AccentText text="Brands we've *built and worked with*" />
+            <AccentText text={content.title} />
           </Heading>
         </div>
         <RevealGroup className="border-surface-rule mt-12 grid grid-cols-2 border-t border-l md:grid-cols-3 lg:grid-cols-4">

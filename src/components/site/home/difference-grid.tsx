@@ -11,18 +11,22 @@ import { HOME_DIFFERENCE } from "@/lib/site/home-content";
 const ICONS = { gem: Gem, zap: Zap, layers: Layers, globe: Globe2 };
 
 /** Superside's "built for brands that refuse to compromise": four icon benefits. */
-export function DifferenceGrid() {
+export function DifferenceGrid({
+  content = HOME_DIFFERENCE,
+}: {
+  content?: typeof HOME_DIFFERENCE;
+} = {}) {
   return (
     <Section spacing="md" className="pt-0 md:pt-0 xl:pt-0">
       <Container>
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-          <Eyebrow>{HOME_DIFFERENCE.eyebrow}</Eyebrow>
+          <Eyebrow>{content.eyebrow}</Eyebrow>
           <Heading size="h1">
-            <AccentText text={HOME_DIFFERENCE.title} />
+            <AccentText text={content.title} />
           </Heading>
         </div>
         <RevealGroup className="mt-12 grid gap-10 md:mt-16 md:grid-cols-2 md:gap-12 xl:grid-cols-4 xl:gap-10">
-          {HOME_DIFFERENCE.items.map((item) => {
+          {content.items.map((item) => {
             const Icon = ICONS[item.icon];
             return (
               <RevealItem key={item.title} className="flex flex-col gap-4">

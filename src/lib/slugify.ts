@@ -1,14 +1,11 @@
-import { randomBytes } from "crypto";
-
-export function slugify(text: string): string {
-  const base = text
+/** URL-safe slug: lower-case words joined by dashes. Safe on server and client. */
+export function slugify(text: string) {
+  return text
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  const suffix = randomBytes(2).toString("hex");
-  return `${base}-${suffix}`;
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
 }

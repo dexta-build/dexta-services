@@ -8,6 +8,10 @@ import { whatsAppWithText } from "../catalogue/order-panel";
 import type { Surface } from "../section";
 import { Countdown } from "./countdown";
 import type { OfferData } from "@/lib/site/offers-shared";
+import {
+  OFFER_CARD_LABELS,
+  type OfferCardLabels,
+} from "@/lib/site/offer-labels";
 
 /** Lets long button labels wrap in narrow cards instead of overflowing. */
 const WRAP = "h-auto min-h-14 py-3 text-center whitespace-normal";
@@ -22,19 +26,21 @@ export function OfferCard({
   offer,
   surface,
   whatsappBase,
+  labels: L = OFFER_CARD_LABELS,
 }: {
   offer: OfferData;
   surface: Surface;
   whatsappBase: string | null;
+  labels?: OfferCardLabels;
 }) {
   const { format, formatIn, currency } = useCurrency();
   const hasPrice = offer.priceNGN != null;
 
   const message = [
-    `Hello Dexta! I'm interested in the ${offer.name} offer.`,
+    L.messageIntro.replace("{offer}", offer.name),
     hasPrice
       ? `Price: ${formatIn(offer.priceNGN!, "NGN")}${offer.priceNote ? ` ${offer.priceNote}` : ""}${currency !== "NGN" ? ` (about ${format(offer.priceNGN!)})` : ""}`
-      : "Please send me a quote.",
+      : L.messageQuote,
   ].join("\n");
   const whatsappHref =
     offer.whatsappEnabled && whatsappBase
@@ -60,7 +66,7 @@ export function OfferCard({
       <div className="border-surface-rule mt-8 border-t pt-6">
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-[2.5rem] leading-none font-bold tracking-tight tabular-nums md:text-[2.75rem]">
-            {hasPrice ? format(offer.priceNGN!) : "Custom quote"}
+            {hasPrice ? format(offer.priceNGN!) : L.customQuote}
           </span>
           {hasPrice && offer.priceNote && (
             <span className="text-surface-muted">{offer.priceNote}</span>
@@ -68,12 +74,14 @@ export function OfferCard({
         </p>
         {hasPrice && currency !== "NGN" && (
           <p className="text-surface-muted mt-2 text-xs tabular-nums">
-            {formatIn(offer.priceNGN!, "NGN")} · estimate at today&apos;s rate
+            {formatIn(offer.priceNGN!, "NGN")} · {L.estimateNote}
           </p>
         )}
       </div>
 
-      {offer.endsAt && <Countdown endsAt={offer.endsAt} className="mt-6" />}
+      {offer.endsAt && (
+        <Countdown endsAt={offer.endsAt} className="mt-6" labels={L} />
+      )}
 
       {offer.features.length > 0 && (
         <ul className="mt-8 flex flex-col">
@@ -99,7 +107,7 @@ export function OfferCard({
             className={WRAP}
           >
             <CreditCard aria-hidden className="size-4" />
-            Pay now
+            {L.payButton}
           </Button>
         )}
         {whatsappHref && (
@@ -112,12 +120,12 @@ export function OfferCard({
             variant={offer.paymentLink ? "outline" : "primary"}
             className={WRAP}
           >
-            {hasPrice ? "Order on WhatsApp" : "Get a quote on WhatsApp"}
+            {hasPrice ? L.orderButton : L.quoteButton}
           </Button>
         )}
         {!offer.paymentLink && !whatsappHref && (
           <Button href="/contact" block size="lg" arrow className={WRAP}>
-            Ask about this offer
+            {L.contactButton}
           </Button>
         )}
       </div>

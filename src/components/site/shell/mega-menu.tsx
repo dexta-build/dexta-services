@@ -3,13 +3,11 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  CATALOGUES,
-  RESOURCES,
-  SERVICE_GROUPS,
   type ResourceHighlight,
   type ServiceGroup,
 } from "@/lib/site/navigation";
 import { NavIcon } from "./nav-icon";
+import { asIcon, pillFor, useSiteNav } from "./nav-context";
 
 /** Coloured pill heading with an arrow, as in Superside's mega-menu. */
 export function GroupPill({
@@ -17,7 +15,7 @@ export function GroupPill({
   onNavigate,
   className,
 }: {
-  group: Pick<ServiceGroup, "title" | "href" | "pillClass">;
+  group: Pick<ServiceGroup, "title" | "href"> & { pillClass?: string };
   onNavigate?: () => void;
   className?: string;
 }) {
@@ -51,7 +49,7 @@ export function MenuRow({
   href: string;
   title: string;
   description: string;
-  icon: Parameters<typeof NavIcon>[0]["name"];
+  icon: string;
   onNavigate?: () => void;
 }) {
   return (
@@ -67,7 +65,7 @@ export function MenuRow({
         <span className="text-surface-muted text-sm">{description}</span>
       </span>
       <NavIcon
-        name={icon}
+        name={asIcon(icon)}
         className="text-surface-muted size-5 shrink-0 transition-colors group-hover/row:text-brand"
       />
     </Link>
@@ -75,12 +73,13 @@ export function MenuRow({
 }
 
 export function ServicesPanel({ onNavigate }: { onNavigate: () => void }) {
+  const nav = useSiteNav();
   return (
     <div className="grid grid-cols-3 gap-8 3xl:gap-12">
-      {SERVICE_GROUPS.map((group) => (
-        <div key={group.key} className="flex flex-col gap-4">
+      {nav.serviceGroups.map((group, gi) => (
+        <div key={group.key ?? group.href} className="flex flex-col gap-4">
           <GroupPill
-            group={group}
+            group={{ ...group, pillClass: pillFor(group, gi) }}
             onNavigate={onNavigate}
             className="self-start"
           />
@@ -96,31 +95,38 @@ export function ServicesPanel({ onNavigate }: { onNavigate: () => void }) {
 }
 
 export function CataloguesPanel({ onNavigate }: { onNavigate: () => void }) {
-  const featured = CATALOGUES.filter((c) => c.featured).slice(0, 2);
+  const nav = useSiteNav();
+  const catalogues = nav.catalogues;
+  const picked = catalogues.filter((c) => c.featured);
+  const featured = (picked.length ? picked : catalogues).slice(0, 2);
   return (
     <div className="grid grid-cols-[1fr_2fr] gap-10">
       <div className="border-surface-rule flex flex-col border-r pr-10">
-        <p className="mb-2 text-[0.9375rem]">Our catalogues</p>
-        {CATALOGUES.map((c) => (
+        <p className="mb-2 text-[0.9375rem]">
+          {nav.labels.cataloguesList ?? "Our catalogues"}
+        </p>
+        {catalogues.map((c) => (
           <MenuRow
             key={c.slug}
             href={c.href}
             title={c.title}
             description={c.description}
-            icon={c.icon}
+            icon={asIcon(c.icon)}
             onNavigate={onNavigate}
           />
         ))}
       </div>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <p className="text-[0.9375rem]">Featured</p>
+          <p className="text-[0.9375rem]">
+            {nav.labels.cataloguesFeatured ?? "Featured"}
+          </p>
           <Link
             href="/catalogue"
             onClick={onNavigate}
             className="dx-link inline-flex items-center gap-1 text-sm font-bold"
           >
-            Browse all catalogues
+            {nav.labels.cataloguesAll ?? "Browse all catalogues"}
             <ArrowUpRight aria-hidden className="size-4" />
           </Link>
         </div>
@@ -167,11 +173,12 @@ export function ResourcesPanel({
   onNavigate: () => void;
   highlights: ResourceHighlight[];
 }) {
+  const nav = useSiteNav();
   return (
     <div className="grid grid-cols-[1fr_2fr] gap-10">
       <div className="border-surface-rule flex flex-col border-r pr-10">
         <p className="mb-2 text-[0.9375rem]">Our resources</p>
-        {RESOURCES.map((r) => (
+        {nav.resources.map((r) => (
           <MenuRow
             key={r.href}
             href={r.href}

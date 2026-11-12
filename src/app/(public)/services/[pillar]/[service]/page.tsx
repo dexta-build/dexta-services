@@ -1,23 +1,26 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ServicePageTemplate } from "@/components/site/services/service-page-template";
+import { loadServicePage } from "@/lib/content/pages/services";
+import { pageMetadata } from "@/lib/content/seo";
+import { getWhatsApp } from "@/lib/content/site-settings";
 import { getHomeData } from "@/lib/site/home-data";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import { SERVICE_GROUPS } from "@/lib/site/navigation";
-import {
-  getService,
-  PILLARS,
-  SERVICES,
-  servicesInPillar,
-} from "@/lib/site/services-content";
+import { SERVICES } from "@/lib/site/services-content";
+import { getServiceCatalog } from "@/lib/services/catalog";
 
 type Params = { pillar: string; service: string };
 
-export function generateStaticParams(): Params[] {
-  return SERVICES.map((s) => ({ pillar: s.pillar, service: s.slug }));
+export async function generateStaticParams() {
+  try {
+    return (await getServiceCatalog()).flatMap((p) =>
+      p.services
+        .filter((s) => !s.externalHref)
+        .map((s) => ({ pillar: p.key, service: s.slug })),
+    );
+  } catch {
+    return SERVICES.map((s) => ({ pillar: s.pillar, service: s.slug }));
+  }
 }
-
-const plain = (text: string) => text.replace(/\*/g, "");
 
 export async function generateMetadata({
   params,
@@ -25,13 +28,8 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { pillar, service } = await params;
-  const page = getService(pillar, service);
-  if (!page) return {};
-  return {
-    alternates: { canonical: `/services/${pillar}/${service}` },
-    title: page.hero.eyebrow,
-    description: plain(page.hero.body),
-  };
+  const loaded = await loadServicePage(pillar, service);
+  return loaded ? pageMetadata(loaded.def) : {};
 }
 
 export default async function ServiceDetailPage({
@@ -40,39 +38,30 @@ export default async function ServiceDetailPage({
   params: Promise<Params>;
 }) {
   const { pillar, service } = await params;
-  const page = getService(pillar, service);
-  if (!page) notFound();
+  const loaded = await loadServicePage(pillar, service);
+  if (!loaded?.service) notFound();
 
-  const group = SERVICE_GROUPS.find((g) => g.key === pillar);
   const [home, whatsappHref] = await Promise.all([
     getHomeData(),
-    getWhatsAppHref(`Hello Dexta, I'd like to talk about ${page.shortName}.`),
+    getWhatsApp("service", { service: loaded.page.shortName }),
   ]);
-
-  // Sibling services in the same pillar, as photo cards.
-  const related = PILLARS[page.pillar].offerings.items.filter(
-    (item) => item.href !== `/services/${pillar}/${service}`,
-  );
-  const siblingsExist = servicesInPillar(page.pillar).length > 1;
 
   return (
     <ServicePageTemplate
-      page={page}
+      page={loaded.page}
+      hidden={loaded.hidden}
+      faqTitle={loaded.faqTitle}
       brands={home.brands}
       whatsappHref={whatsappHref}
       breadcrumbs={[
         { label: "Services", href: "/services" },
-        { label: group?.title ?? pillar, href: `/services/${pillar}` },
-        { label: page.hero.eyebrow, href: `/services/${pillar}/${service}` },
+        { label: loaded.pillar.title, href: `/services/${pillar}` },
+        {
+          label: loaded.service.title,
+          href: `/services/${pillar}/${service}`,
+        },
       ]}
-      related={
-        siblingsExist
-          ? {
-              title: `Explore more *${page.pillar}* services`,
-              items: related,
-            }
-          : undefined
-      }
+      related={loaded.related}
     />
   );
 }

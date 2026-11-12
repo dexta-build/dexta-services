@@ -6,12 +6,13 @@ import { ABOUT_TEAM_TAG } from "@/lib/about-cache";
 import { imageUrl } from "./media";
 import { STOCK, stock } from "./stock-media";
 import { presetFor } from "./team-presets";
+import { liveAddress } from "@/lib/team/addresses";
 import { renderArticle } from "./thoughts-data";
 import { getWorks } from "./works-data";
 
 /**
  * Team members for the About page carousel and the personal portfolio pages
- * (/team/[slug]), from the AboutTeamMember table. Cached on the admin's
+ * (/[slug], e.g. /daniel-azu), from the AboutTeamMember table. Cached on the admin's
  * team tag; no polling. In development, sample teammates (with complete
  * portfolios, to preview every section) fill in while there are fewer than
  * four people.
@@ -101,15 +102,6 @@ export type TeamMember = {
   /** Development only: sections filled with role placeholders. */
   placeholders: string[];
 };
-
-function toSlug(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-");
-}
 
 function list(raw: unknown): unknown[] {
   if (typeof raw !== "string") return [];
@@ -537,7 +529,7 @@ async function loadTeam(): Promise<TeamMember[]> {
       }
     }
 
-    let slug = r.slug || toSlug(r.name) || `member-${i}`;
+    let slug = liveAddress(r.slug, r.name) || `member-${i}`;
     while (used.has(slug)) slug = `${slug}-${i}`;
     used.add(slug);
 
@@ -650,6 +642,41 @@ const loadTeamCached = unstable_cache(loadTeam, ["site-team-v2"], {
 
 export async function getTeam(): Promise<TeamMember[]> {
   return process.env.NODE_ENV === "development" ? loadTeam() : loadTeamCached();
+}
+
+/**
+ * Old profile addresses (after a rename) and the person each leads to.
+ * Cached with the team; empty until the redirects table exists.
+ */
+async function loadAddressRedirects(): Promise<Record<string, string>> {
+  try {
+    const rows = await prisma.teamSlugRedirect.findMany({
+      select: { slug: true, memberId: true },
+    });
+    return Object.fromEntries(rows.map((r) => [r.slug, r.memberId]));
+  } catch {
+    return {};
+  }
+}
+
+const loadAddressRedirectsCached = unstable_cache(
+  loadAddressRedirects,
+  ["team-address-redirects"],
+  { revalidate: false, tags: [ABOUT_TEAM_TAG] },
+);
+
+/** The current address for an old one, or null. */
+export async function findProfileRedirect(
+  oldSlug: string,
+): Promise<string | null> {
+  const redirects =
+    process.env.NODE_ENV === "development"
+      ? await loadAddressRedirects()
+      : await loadAddressRedirectsCached();
+  const memberId = redirects[oldSlug];
+  if (!memberId) return null;
+  const member = (await getTeam()).find((m) => m.id === memberId);
+  return member && member.slug !== oldSlug ? member.slug : null;
 }
 
 export async function getTeamMember(slug: string) {

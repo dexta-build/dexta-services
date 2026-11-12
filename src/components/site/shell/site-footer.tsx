@@ -6,18 +6,37 @@ import type {
   ContactSocialLinkData,
 } from "@/lib/contact-defaults";
 import { CONTACT_SOCIAL_PLATFORM_META } from "@/lib/contact-socials";
-import {
-  CATALOGUES,
-  FOOTER_COMPANY_LINKS,
-  SERVICE_GROUPS,
-} from "@/lib/site/navigation";
+import { DEFAULT_NAV, type SiteNav } from "./nav-data";
+
+export type FooterContent = {
+  blurb: string;
+  whatsappLabel: string;
+  cataloguesTitle: string;
+  companyTitle: string;
+  companyLinks: { label: string; href: string }[];
+  copyright: string;
+};
+
+const DEFAULT_FOOTER: FooterContent = {
+  blurb:
+    "A creative agency for design, software and print, helping brands and life's big moments look their best.",
+  whatsappLabel: "Chat on WhatsApp",
+  cataloguesTitle: "Catalogues",
+  companyTitle: "Company",
+  companyLinks: [],
+  copyright: "© {year} Dexta Synergy Services. All rights reserved.",
+};
 import { Container } from "../container";
 import { Logo } from "./logo";
 import { BackToTop } from "./back-to-top";
 
 type SiteFooterProps = {
-  contact: ContactPageContentData;
+  contact: Pick<ContactPageContentData, "address" | "emails" | "phones">;
   socials: ContactSocialLinkData[];
+  /** Header menus (the service columns follow them). */
+  nav?: SiteNav;
+  /** Footer text and company links from Site settings. */
+  footer?: FooterContent;
   whatsappHref: string | null;
 };
 
@@ -25,6 +44,8 @@ type SiteFooterProps = {
 export function SiteFooter({
   contact,
   socials,
+  nav = DEFAULT_NAV,
+  footer = DEFAULT_FOOTER,
   whatsappHref,
 }: SiteFooterProps) {
   const visibleSocials = socials
@@ -44,8 +65,7 @@ export function SiteFooter({
           <div className="col-span-2 flex flex-col gap-6 md:col-span-5 xl:col-span-1">
             <Logo tone="dark" />
             <p className="text-surface-muted max-w-xs text-sm leading-relaxed">
-              A creative agency for design, software and print, helping brands
-              and life&apos;s big moments look their best.
+              {footer.blurb}
             </p>
             <ul className="flex flex-col gap-2 text-sm">
               {email && (
@@ -73,7 +93,7 @@ export function SiteFooter({
                     rel="noopener noreferrer"
                     className="dx-link"
                   >
-                    Chat on WhatsApp
+                    {footer.whatsappLabel}
                   </a>
                 </li>
               )}
@@ -85,8 +105,12 @@ export function SiteFooter({
             </ul>
           </div>
 
-          {SERVICE_GROUPS.map((group) => (
-            <FooterColumn key={group.key} title={group.title} href={group.href}>
+          {nav.serviceGroups.slice(0, 3).map((group) => (
+            <FooterColumn
+              key={group.key ?? group.href}
+              title={group.title}
+              href={group.href}
+            >
               {group.items.slice(0, 5).map((item) => (
                 <FooterLink key={item.href} href={item.href}>
                   {item.title}
@@ -95,16 +119,16 @@ export function SiteFooter({
             </FooterColumn>
           ))}
 
-          <FooterColumn title="Catalogues" href="/catalogue">
-            {CATALOGUES.map((c) => (
+          <FooterColumn title={footer.cataloguesTitle} href="/catalogue">
+            {nav.catalogues.map((c) => (
               <FooterLink key={c.slug} href={c.href}>
                 {c.title}
               </FooterLink>
             ))}
           </FooterColumn>
 
-          <FooterColumn title="Company">
-            {FOOTER_COMPANY_LINKS.map((link) => (
+          <FooterColumn title={footer.companyTitle}>
+            {footer.companyLinks.map((link) => (
               <FooterLink key={link.href} href={link.href}>
                 {link.label}
               </FooterLink>
@@ -115,8 +139,10 @@ export function SiteFooter({
         {/* Bottom bar */}
         <div className="border-surface-rule flex flex-col gap-6 border-t py-8 md:flex-row md:items-center md:justify-between">
           <p className="text-surface-muted text-sm">
-            © {new Date().getFullYear()} Dexta Synergy Services. All rights
-            reserved.
+            {footer.copyright.replace(
+              "{year}",
+              String(new Date().getFullYear()),
+            )}
           </p>
           <div className="flex items-center gap-2">
             {visibleSocials.map((s) => {

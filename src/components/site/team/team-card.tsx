@@ -72,7 +72,7 @@ export function TeamCard({
 }) {
   return (
     <Link
-      href={`/team/${member.slug}`}
+      href={`/${member.slug}`}
       data-cursor="Meet"
       className="group flex h-full flex-col overflow-hidden rounded-[10px]"
     >

@@ -28,7 +28,13 @@ function fill<T>(items: T[], min: number): T[] {
  * scroll past (Superside's "Creative wins" wall). With reduced motion the
  * rows simply scroll sideways by touch or trackpad.
  */
-export function TestimonialsCarousel({ items }: { items: HomeTestimonial[] }) {
+export function TestimonialsCarousel({
+  content = HOME_TESTIMONIALS,
+  items,
+}: {
+  content?: typeof HOME_TESTIMONIALS;
+  items: HomeTestimonial[];
+}) {
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({
@@ -95,9 +101,9 @@ export function TestimonialsCarousel({ items }: { items: HomeTestimonial[] }) {
     >
       <Container>
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-          <Eyebrow>{HOME_TESTIMONIALS.eyebrow}</Eyebrow>
+          <Eyebrow>{content.eyebrow}</Eyebrow>
           <Heading size="h1">
-            <AccentText text={HOME_TESTIMONIALS.title} />
+            <AccentText text={content.title} />
           </Heading>
         </div>
       </Container>

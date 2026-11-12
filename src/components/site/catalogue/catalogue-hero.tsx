@@ -7,12 +7,25 @@ import { Eyebrow } from "../eyebrow";
 import { Heading } from "../heading";
 import { Marquee } from "../marquee";
 import type { CatalogueData } from "@/lib/site/catalogue-data";
+import { CATALOGUE_HERO_LABELS, fill } from "@/lib/site/catalogue-labels";
 
 /**
  * A catalogue's hero in its own colour (gold for Wedding, coral for Events…)
  * with a sliding row of its categories, each linking to that filter.
  */
-export function CatalogueHero({ catalogue }: { catalogue: CatalogueData }) {
+export function CatalogueHero({
+  catalogue,
+  labels = CATALOGUE_HERO_LABELS,
+}: {
+  catalogue: CatalogueData;
+  labels?: typeof CATALOGUE_HERO_LABELS;
+}) {
+  const title =
+    catalogue.heroTitle || fill(labels.title, { catalogue: catalogue.title });
+  const description = catalogue.description.trim().replace(/\.$/, "");
+  const text =
+    catalogue.heroText ||
+    [description && `${description}.`, labels.line].filter(Boolean).join(" ");
   const chips = catalogue.categories.map((cat) => ({
     label: cat,
     image: catalogue.items.find(
@@ -43,14 +56,11 @@ export function CatalogueHero({ catalogue }: { catalogue: CatalogueData }) {
               </li>
             </ol>
           </nav>
-          <Eyebrow>Catalogue</Eyebrow>
+          {labels.eyebrow && <Eyebrow>{labels.eyebrow}</Eyebrow>}
           <Heading size="display" as="h1">
-            <AccentText text={`*${catalogue.title}* catalogue`} />
+            <AccentText text={title} />
           </Heading>
-          <p className="text-lead text-surface-muted max-w-xl">
-            {catalogue.description}. Pick a design, choose your quantity and
-            order on WhatsApp.
-          </p>
+          <p className="text-lead text-surface-muted max-w-xl">{text}</p>
         </div>
         <div className="relative hidden aspect-[4/3] overflow-hidden rounded-[10px] lg:block">
           <Image

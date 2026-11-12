@@ -3,12 +3,16 @@ import { AccentText } from "./accent-text";
 import { Button } from "./button";
 import { Container } from "./container";
 import { Heading } from "./heading";
+import { stock } from "@/lib/site/stock-media";
+import type { ClosingData } from "@/lib/content/pages/shared";
 
 type ClosingCtaProps = {
+  /** Editable section content (overrides title, body, image, button). */
+  content?: ClosingData;
   /** Title with *accent* markers. */
-  title: string;
+  title?: string;
   body?: string;
-  image: string;
+  image?: string;
   whatsappHref?: string | null;
   primary?: { label: string; href: string };
   /**
@@ -20,14 +24,14 @@ type ClosingCtaProps = {
 };
 
 /** The photo call-to-action that ends a page. */
-export function ClosingCta({
-  title,
-  body,
-  image,
-  whatsappHref,
-  primary = { label: "Start a project", href: "/contact" },
-  variant = "band",
-}: ClosingCtaProps) {
+export function ClosingCta(props: ClosingCtaProps) {
+  const { content, whatsappHref, variant = "band" } = props;
+  const title = content?.title ?? props.title ?? "";
+  const body = content ? content.body || undefined : props.body;
+  const image = content ? stock(content.image, 2000) : (props.image ?? "");
+  const primary = content?.primary ??
+    props.primary ?? { label: "Start a project", href: "/contact" };
+  const whatsappLabel = content?.whatsappLabel || "Chat on WhatsApp";
   const buttons = (
     <div className="mt-8 flex w-full max-w-[480px] flex-col gap-3 md:w-auto md:flex-row">
       <Button href={primary.href} size="lg" block="mobile" arrow>
@@ -41,7 +45,7 @@ export function ClosingCta({
           size="lg"
           block="mobile"
         >
-          Chat on WhatsApp
+          {whatsappLabel}
         </Button>
       )}
     </div>

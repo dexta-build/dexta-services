@@ -1,22 +1,51 @@
 import { CursorLabel, SiteFooter, SiteHeader } from "@/components/site/shell";
-import { fetchContactPageContent, fetchContactSocialLinks } from "@/lib/api";
+import { SiteNavProvider } from "@/components/site/shell/nav-context";
+import { PreviewBar } from "@/components/site/shell/preview-bar";
+import {
+  getSiteSettings,
+  getWhatsApp,
+  socialLinks,
+} from "@/lib/content/site-settings";
+import { isPreviewing } from "@/lib/content/store";
+import { getServiceMenu } from "@/lib/services/catalog";
+import { getCatalogueMenu } from "@/lib/site/catalogue-store";
 import { getEvents } from "@/lib/site/events-data";
 import type { ResourceHighlight } from "@/lib/site/navigation";
 import { getThoughts } from "@/lib/site/thoughts-data";
-import { resolveWhatsAppHref } from "@/lib/site/whatsapp";
 
 export default async function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [contactContent, contactSocialLinks, thoughts, events] =
-    await Promise.all([
-      fetchContactPageContent(),
-      fetchContactSocialLinks(),
-      getThoughts(),
-      getEvents(),
-    ]);
+  const [
+    site,
+    serviceMenu,
+    catalogueMenu,
+    whatsappHref,
+    preview,
+    thoughts,
+    events,
+  ] = await Promise.all([
+    getSiteSettings(),
+    getServiceMenu(),
+    getCatalogueMenu(),
+    getWhatsApp("general"),
+    isPreviewing(),
+    getThoughts(),
+    getEvents(),
+  ]);
+  const nav = {
+    ...site.header,
+    serviceGroups: serviceMenu,
+    catalogues: catalogueMenu,
+  };
+  const contactSocialLinks = socialLinks(site.business);
+  const contactContent = {
+    address: site.business.address,
+    emails: site.business.emails,
+    phones: site.business.phones,
+  };
 
   // Resources menu cards: the next event, then the latest article(s).
   const now = Date.now();
@@ -44,14 +73,9 @@ export default async function PublicLayout({
     .filter((h) => h.image)
     .slice(0, 2);
 
-  const whatsappHref = resolveWhatsAppHref(
-    contactSocialLinks,
-    contactContent.phones,
-    "Hello Dexta, I'd like to start a project.",
-  );
-
   return (
-    <>
+    <SiteNavProvider value={nav}>
+      {preview && <PreviewBar />}
       <CursorLabel />
       <SiteHeader
         whatsappHref={whatsappHref}
@@ -63,7 +87,9 @@ export default async function PublicLayout({
         contact={contactContent}
         socials={contactSocialLinks}
         whatsappHref={whatsappHref}
+        nav={nav}
+        footer={site.footer}
       />
-    </>
+    </SiteNavProvider>
   );
 }

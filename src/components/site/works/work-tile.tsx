@@ -23,6 +23,8 @@ type WorkTileProps = {
   /** Larger type for the featured row. */
   large?: boolean;
   sizes?: string;
+  /** Text of the link on the tile. */
+  viewLabel?: string;
 };
 
 /**
@@ -41,6 +43,7 @@ export function WorkTile({
   className,
   large = false,
   sizes = "(min-width: 768px) 50vw, 100vw",
+  viewLabel = "View project",
 }: WorkTileProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { amount: 0.4 });
@@ -69,7 +72,7 @@ export function WorkTile({
       onClick={(e) => e.stopPropagation()}
       className="inline-flex items-center gap-1.5 self-start text-sm font-bold"
     >
-      <span className="dx-link">View project</span>
+      <span className="dx-link">{viewLabel}</span>
       <ArrowUpRight aria-hidden className="size-4" />
     </Link>
   );

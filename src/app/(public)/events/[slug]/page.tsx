@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DynamicRegistrationForm } from "@/components/events/dynamic-registration-form";
 import { RecaptchaProvider } from "@/components/layout/recaptcha-provider";
 import {
   EventDetail,
   googleCalendarHref,
 } from "@/components/site/events/event-detail";
-import { SampleRegistrationForm } from "@/components/site/events/sample-registration-form";
+import { RegistrationForm } from "@/components/site/events/registration-form";
 import { getCloudinaryUrl } from "@/lib/cloudinary";
+import { EVENT_TEMPLATE } from "@/lib/content/pages/templates";
+import { loadPage } from "@/lib/content/store";
+import { parseOptions, type FieldType } from "@/lib/events/fields";
 import prisma from "@/lib/prisma";
 import { eventDateLabel, formatFor, getEvents } from "@/lib/site/events-data";
 import { STOCK, stock } from "@/lib/site/stock-media";
@@ -29,11 +31,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const event = await prisma.event
     .findUnique({
       where: { slug },
-      select: { title: true, description: true, imagePublicId: true },
+      select: {
+        title: true,
+        description: true,
+        imagePublicId: true,
+        status: true,
+      },
     })
     .catch(() => null);
 
-  if (!event) {
+  if (!event || event.status === "DRAFT") {
     const sample = await findSample(slug);
     return sample
       ? {
@@ -68,15 +75,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+const SAMPLE_FIELDS = [
+  {
+    name: "phone",
+    label: "Phone / WhatsApp",
+    type: "TEXT" as const,
+    placeholder: "+234…",
+    required: true,
+    options: [],
+  },
+];
+
 export default async function EventPage({ params }: Props) {
   const { slug } = await params;
-
-  const event = await prisma.event
-    .findUnique({
-      where: { slug },
-      include: { formFields: { orderBy: { position: "asc" } } },
-    })
-    .catch(() => null);
+  const [event, template] = await Promise.all([
+    prisma.event
+      .findUnique({
+        where: { slug },
+        include: { formFields: { orderBy: { position: "asc" } } },
+      })
+      .catch(() => null),
+    loadPage(EVENT_TEMPLATE),
+  ]);
+  const { labels: L, form: formLabels } = template.data;
 
   // Sample events (development only) get the same page with a preview form.
   if (!event) {
@@ -92,7 +113,7 @@ export default async function EventPage({ params }: Props) {
         format={sample.format}
         image={sample.image ?? stock(STOCK.eventStage, 2000, 1200)}
         ended={start.getTime() <= Date.now()}
-        spacesLabel="Open to all"
+        spacesLabel={L.openToAll}
         calendarHref={googleCalendarHref(
           sample.title,
           sample.description,
@@ -100,7 +121,17 @@ export default async function EventPage({ params }: Props) {
           start,
         )}
         sample
-        registration={<SampleRegistrationForm />}
+        labels={L}
+        registration={
+          <RegistrationForm
+            fields={SAMPLE_FIELDS}
+            labels={{
+              ...formLabels,
+              subtitle: "Sample event: nothing is sent.",
+            }}
+            preview
+          />
+        }
       />
     );
   }
@@ -111,10 +142,10 @@ export default async function EventPage({ params }: Props) {
     where: { eventId: event.id, status: "ACCEPTED" },
   });
 
-  const isClosed = event.status === "CLOSED";
   const spotsLeft = event.attendeeLimit
-    ? event.attendeeLimit - acceptedCount
+    ? Math.max(0, event.attendeeLimit - acceptedCount)
     : null;
+  const isClosed = event.status === "CLOSED" || spotsLeft === 0;
   const image = event.imagePublicId
     ? getCloudinaryUrl(event.imagePublicId, { w: 2000, f: "auto", q: "auto" })
     : stock(STOCK.eventStage, 2000, 1200);
@@ -133,14 +164,17 @@ export default async function EventPage({ params }: Props) {
       format={formatFor(event.location)}
       image={image}
       ended={event.dateTime.getTime() <= Date.now()}
+      labels={L}
       spacesLabel={
-        isClosed
-          ? "Registration closed"
-          : event.attendeeLimit
-            ? spotsLeft !== null && spotsLeft > 0
-              ? `${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} left`
-              : `${acceptedCount} / ${event.attendeeLimit} accepted`
-            : "Open to all"
+        event.status === "CLOSED"
+          ? L.closed
+          : spotsLeft === null
+            ? L.openToAll
+            : spotsLeft === 0
+              ? L.full
+              : spotsLeft === 1
+                ? L.spotsLeftOne
+                : L.spotsLeftMany.replace("{count}", String(spotsLeft))
       }
       calendarHref={googleCalendarHref(
         event.title,
@@ -150,18 +184,18 @@ export default async function EventPage({ params }: Props) {
       )}
       registration={
         <RecaptchaProvider>
-          <DynamicRegistrationForm
-            eventSlug={slug}
+          <RegistrationForm
             fields={event.formFields.map((f) => ({
               name: f.name,
               label: f.label,
-              type: f.type,
-              placeholder: f.placeholder,
+              type: f.type as FieldType,
+              placeholder: f.placeholder ?? "",
               required: f.required,
-              options: f.options,
+              options: parseOptions(f.options),
             }))}
-            isClosed={isClosed}
+            closed={isClosed}
             submitAction={boundRegister}
+            labels={formLabels}
           />
         </RecaptchaProvider>
       }

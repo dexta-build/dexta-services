@@ -12,6 +12,10 @@ import { Container } from "../container";
 import { Eyebrow } from "../eyebrow";
 import { Heading } from "../heading";
 import { MediaAsset } from "../media-asset";
+import {
+  EVENT_PAGE_LABELS,
+  type EventPageLabels,
+} from "@/lib/site/event-labels";
 
 export type EventDetailProps = {
   title: string;
@@ -47,7 +51,8 @@ export function EventDetail({
   calendarHref,
   sample,
   registration,
-}: EventDetailProps) {
+  labels: L = EVENT_PAGE_LABELS,
+}: EventDetailProps & { labels?: EventPageLabels }) {
   return (
     <main className="dx-site">
       <section
@@ -89,7 +94,7 @@ export function EventDetail({
                   : "bg-brand-cyan text-royal rounded-full px-3 py-1 text-xs font-bold"
               }
             >
-              {ended ? "Ended" : dateLabel}
+              {ended ? L.ended : dateLabel}
             </span>
             <span className="border-surface-fg/40 rounded-full border px-3 py-1 text-xs font-bold">
               {format}
@@ -113,7 +118,7 @@ export function EventDetail({
       <Container className="grid gap-10 py-12 md:py-16 lg:grid-cols-[1.35fr_1fr] lg:gap-16">
         <div className="flex flex-col gap-8">
           <div>
-            <Eyebrow>About this event</Eyebrow>
+            {L.about && <Eyebrow>{L.about}</Eyebrow>}
             <p className="mt-4 text-lg leading-relaxed whitespace-pre-line">
               {description}
             </p>
@@ -122,17 +127,20 @@ export function EventDetail({
           <dl className="border-surface-rule bg-surface-rule grid gap-px overflow-hidden rounded-[10px] border sm:grid-cols-2">
             <Detail
               icon={<CalendarDays className="size-4" />}
-              label="Date & time"
+              label={L.dateLabel}
             >
               {dateLabel}
             </Detail>
-            <Detail icon={<MapPin className="size-4" />} label="Location">
+            <Detail
+              icon={<MapPin className="size-4" />}
+              label={L.locationLabel}
+            >
               {location}
             </Detail>
-            <Detail icon={<Globe2 className="size-4" />} label="Format">
+            <Detail icon={<Globe2 className="size-4" />} label={L.formatLabel}>
               {format}
             </Detail>
-            <Detail icon={<Users className="size-4" />} label="Spaces">
+            <Detail icon={<Users className="size-4" />} label={L.spacesLabel}>
               {spacesLabel}
             </Detail>
           </dl>
@@ -145,7 +153,7 @@ export function EventDetail({
               className="dx-link inline-flex items-center gap-2 self-start text-sm font-bold"
             >
               <CalendarPlus aria-hidden className="size-4" />
-              Add to Google Calendar
+              {L.calendar}
             </a>
           )}
         </div>
@@ -159,12 +167,12 @@ export function EventDetail({
               data-surface="ice"
               className="bg-surface text-surface-fg flex flex-col gap-4 rounded-[10px] p-6 md:p-8"
             >
-              <p className="text-h3">This event has ended</p>
+              <p className="text-h3">{L.endedTitle}</p>
               <p className="text-surface-muted text-sm leading-relaxed">
-                Thanks to everyone who came. See what&apos;s coming up next.
+                {L.endedBody}
               </p>
               <Button href="/events" arrow className="self-start">
-                See upcoming events
+                {L.endedButton}
               </Button>
             </div>
           ) : (

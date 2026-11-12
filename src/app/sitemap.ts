@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
-import { PILLARS, SERVICES } from "@/lib/site/services-content";
-import { getCatalogues } from "@/lib/site/catalogue-data";
+import { getServiceCatalog } from "@/lib/services/catalog";
+import { getCatalogues } from "@/lib/site/catalogue-store";
 import { getEvents } from "@/lib/site/events-data";
 import { getExpressions } from "@/lib/site/expressions-data";
-import { SITE_URL } from "@/lib/site/site-url";
+import { getSiteUrl } from "@/lib/content/site-settings";
+import { SITE_URL as ENV_SITE_URL } from "@/lib/site/site-url";
 import { getTeam } from "@/lib/site/team-data";
 import { getThoughtCategories, getThoughts } from "@/lib/site/thoughts-data";
 import { getWorks } from "@/lib/site/works-data";
@@ -14,6 +15,8 @@ import { getWorks } from "@/lib/site/works-data";
  * cached data as the pages (no extra database load).
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const SITE_URL = (await getSiteUrl().catch(() => undefined)) ?? ENV_SITE_URL;
+  const catalog = await getServiceCatalog();
   const now = new Date();
   const page = (
     path: string,
@@ -39,13 +42,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       safe(getExpressions(), []),
       safe(getTeam(), []),
     ]);
-  const catalogues = getCatalogues();
+  const catalogues = await getCatalogues();
 
   return [
     page("", 1, "weekly"),
     page("/services", 0.9),
-    ...Object.values(PILLARS).map((p) => page(`/services/${p.slug}`, 0.8)),
-    ...SERVICES.map((s) => page(`/services/${s.pillar}/${s.slug}`, 0.7)),
+    ...catalog.map((p) => page(`/services/${p.key}`, 0.8)),
+    ...catalog.flatMap((p) =>
+      p.services
+        .filter((s) => !s.externalHref)
+        .map((s) => page(`/services/${p.key}/${s.slug}`, 0.7)),
+    ),
     page("/catalogue", 0.9, "weekly"),
     ...catalogues.map((c) => page(`/catalogue/${c.slug}`, 0.8, "weekly")),
     ...catalogues.flatMap((c) =>
@@ -66,7 +73,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     page("/expressions", 0.7),
     ...expressions.map((e) => page(`/expressions/${e.slug}`, 0.6)),
     page("/about", 0.8),
-    ...team.filter((m) => !m.sample).map((m) => page(`/team/${m.slug}`, 0.5)),
+    ...team.filter((m) => !m.sample).map((m) => page(`/${m.slug}`, 0.5)),
     page("/contact", 0.7, "yearly"),
     page("/webrandschools", 0.6),
   ];

@@ -61,7 +61,13 @@ function Row({
  * edges. One row on phones; two rows moving in opposite directions from
  * tablet up. Our products and clients share the rows.
  */
-export function LogoStrip({ brands }: { brands: BrandLogo[] }) {
+export function LogoStrip({
+  content = HOME_LOGOS,
+  brands,
+}: {
+  content?: typeof HOME_LOGOS;
+  brands: BrandLogo[];
+}) {
   if (brands.length === 0) return null;
 
   // Two rows only when there are enough logos to fill both without the
@@ -77,7 +83,7 @@ export function LogoStrip({ brands }: { brands: BrandLogo[] }) {
     >
       <Container className="flex flex-col gap-10 md:gap-12 lg:gap-20">
         <h2 className="mx-auto max-w-[36rem] text-center text-xl leading-snug font-normal md:text-2xl">
-          {HOME_LOGOS.title}
+          {content.title}
         </h2>
 
         {/* Phones: one row */}

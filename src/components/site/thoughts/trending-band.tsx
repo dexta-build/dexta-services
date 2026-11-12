@@ -14,9 +14,13 @@ import type { ThoughtCategory, ThoughtSummary } from "@/lib/site/thoughts-data";
 export function TrendingBand({
   category,
   posts,
+  label = "Trending",
+  readLabel,
 }: {
   category: ThoughtCategory;
   posts: ThoughtSummary[];
+  label?: string;
+  readLabel?: string;
 }) {
   const [lead, ...rest] = posts;
   if (!lead) return null;
@@ -26,7 +30,7 @@ export function TrendingBand({
     <Section surface="royal">
       <Container>
         <div className="mb-10 flex flex-col items-center gap-3 text-center md:mb-14">
-          <Eyebrow>Trending</Eyebrow>
+          {label && <Eyebrow>{label}</Eyebrow>}
           <Link
             href={`/thoughts/category/${category.slug}`}
             className="text-h1 dx-heading hover:text-brand-cyan transition-colors"
@@ -50,7 +54,7 @@ export function TrendingBand({
               </span>
             </span>
             <span className="flex flex-col gap-3">
-              <PostMeta post={lead} />
+              <PostMeta post={lead} readLabel={readLabel} />
               <span className="dx-heading text-h2 group-hover:text-brand-cyan transition-colors">
                 <AccentText text={lead.title} />
               </span>

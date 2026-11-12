@@ -7,34 +7,32 @@ import { Eyebrow } from "@/components/site/eyebrow";
 import { ExpressionPanel } from "@/components/site/expressions/expression-panel";
 import { Heading } from "@/components/site/heading";
 import { getExpressions } from "@/lib/site/expressions-data";
-import { getWhatsAppHref } from "@/lib/site/page-context";
-import { STOCK, stock } from "@/lib/site/stock-media";
+import { EXPRESSIONS_PAGE } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import { getWhatsApp } from "@/lib/content/site-settings";
+import { loadPage } from "@/lib/content/store";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/expressions" },
-  title: "Our Expressions",
-  description:
-    "Products designed, built and run by Dexta: DX-SchoolPortal, BookPrinta, AwaMenu, DextaLearning and more.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(EXPRESSIONS_PAGE);
+}
 
 export default async function ExpressionsPage() {
   const [expressions, whatsappHref] = await Promise.all([
     getExpressions(),
-    getWhatsAppHref("Hello Dexta, I have a product idea I'd like to build."),
+    getWhatsApp("expressions"),
   ]);
+  const { data: c, hidden } = await loadPage(EXPRESSIONS_PAGE);
 
   return (
     <main className="dx-site">
       <section className="bg-canvas pt-12 pb-12 md:pt-16 md:pb-16">
         <Container className="flex max-w-4xl flex-col items-center gap-5 text-center">
-          <Eyebrow>Our Expressions</Eyebrow>
+          {c.hero.eyebrow && <Eyebrow>{c.hero.eyebrow}</Eyebrow>}
           <Heading size="display" as="h1">
-            <AccentText text="Products we *build* and run" />
+            <AccentText text={c.hero.title} />
           </Heading>
           <p className="text-lead text-surface-muted max-w-2xl">
-            Our Expressions are products designed, built and run by Dexta.
-            They&apos;re proof of what we can make for you, and they serve
-            thousands of people every day.
+            {c.hero.body}
           </p>
           {expressions.length > 1 && (
             <nav
@@ -60,12 +58,9 @@ export default async function ExpressionsPage() {
         <ExpressionPanel key={e.slug} expression={e} index={i} />
       ))}
 
-      <ClosingCta
-        title="Have a product idea? *We'll build it*"
-        body="From first sketch to launch and beyond, we design, build and grow digital products with you."
-        image={stock(STOCK.developerWoman, 2000)}
-        whatsappHref={whatsappHref}
-      />
+      {!hidden.closing && (
+        <ClosingCta content={c.closing} whatsappHref={whatsappHref} />
+      )}
     </main>
   );
 }

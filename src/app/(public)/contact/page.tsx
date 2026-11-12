@@ -8,48 +8,37 @@ import { Container } from "@/components/site/container";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { Heading } from "@/components/site/heading";
 import { FaqSection } from "@/components/site/services/faq-section";
-import { fetchContactPageContent, fetchContactSocialLinks } from "@/lib/api";
+import { CONTACT_PAGE } from "@/lib/content/pages/main";
+import { pageMetadata } from "@/lib/content/seo";
+import {
+  getSiteSettings,
+  getWhatsApp,
+  socialLinks,
+} from "@/lib/content/site-settings";
+import { loadPage } from "@/lib/content/store";
 import { CONTACT_SOCIAL_PLATFORM_META } from "@/lib/contact-socials";
-import { resolveWhatsAppHref } from "@/lib/site/whatsapp";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const content = await fetchContactPageContent();
-  return {
-    alternates: { canonical: "/contact" },
-    title: "Talk to us",
-    description: `${content.heroBody} ${content.address}`.trim(),
-  };
+  return pageMetadata(CONTACT_PAGE);
 }
-
-const FAQS = [
-  {
-    q: "How quickly will you reply?",
-    a: "We reply to messages within one working day, and usually much sooner on WhatsApp.",
-  },
-  {
-    q: "Do you work with clients outside Nigeria?",
-    a: "Yes. We work with clients across Africa, Europe and North America, and can quote in naira, dollars, euros or pounds.",
-  },
-  {
-    q: "Can I visit the studio?",
-    a: "Of course. Send us a message to book a time and we'll have the coffee ready.",
-  },
-];
 
 /**
  * Talk to us: WhatsApp first (the fastest way to reach us), contact
  * details and socials, and the existing contact form with reCAPTCHA.
  */
 export default async function ContactPage() {
-  const [content, socials] = await Promise.all([
-    fetchContactPageContent(),
-    fetchContactSocialLinks(),
+  const [{ data: c, hidden }, site, whatsapp] = await Promise.all([
+    loadPage(CONTACT_PAGE),
+    getSiteSettings(),
+    getWhatsApp("general"),
   ]);
-  const whatsapp = resolveWhatsAppHref(
-    socials,
-    content.phones,
-    "Hello Dexta, I'd like to talk about a project.",
-  );
+  const socials = socialLinks(site.business);
+  const content = {
+    ...c.details,
+    address: site.business.address,
+    emails: site.business.emails,
+    phones: site.business.phones,
+  };
   const visibleSocials = socials
     .filter((s) => s.isVisible && s.href)
     .sort((a, b) => a.position - b.position);
@@ -59,12 +48,12 @@ export default async function ContactPage() {
     <main className="dx-site">
       <section className="bg-canvas pt-12 pb-10 md:pt-16 md:pb-14">
         <Container className="flex max-w-4xl flex-col items-center gap-5 text-center">
-          <Eyebrow>Talk to us</Eyebrow>
+          {c.hero.eyebrow && <Eyebrow>{c.hero.eyebrow}</Eyebrow>}
           <Heading size="display" as="h1">
-            <AccentText text={autoAccent(content.heroTitle)} />
+            <AccentText text={autoAccent(c.hero.title)} />
           </Heading>
           <p className="text-lead text-surface-muted max-w-2xl">
-            {content.heroBody}
+            {c.hero.body}
           </p>
         </Container>
       </section>
@@ -73,7 +62,7 @@ export default async function ContactPage() {
         <Container className="grid gap-6 lg:grid-cols-[1fr_1.15fr] lg:gap-10">
           {/* Ways to reach us */}
           <div className="flex flex-col gap-4">
-            {whatsapp && (
+            {whatsapp && !hidden.whatsapp && (
               <a
                 href={whatsapp}
                 target="_blank"
@@ -92,14 +81,13 @@ export default async function ContactPage() {
                 </span>
                 <span>
                   <span className="text-eyebrow text-surface-muted block">
-                    Fastest reply
+                    {c.whatsapp.eyebrow}
                   </span>
                   <span className="text-h2 mt-2 block">
-                    <AccentText text="Chat with us on *WhatsApp*" />
+                    <AccentText text={c.whatsapp.title} />
                   </span>
                   <span className="text-surface-fg/75 mt-2 block text-sm">
-                    Send us a message and a real person will reply, usually
-                    within minutes during working hours.
+                    {c.whatsapp.body}
                   </span>
                 </span>
               </a>
@@ -148,7 +136,7 @@ export default async function ContactPage() {
               )}
             </div>
 
-            {content.address && (
+            {content.address && c.map.show && (
               <div
                 data-surface="gold"
                 className="bg-surface text-surface-fg flex flex-col gap-3 rounded-[10px] p-6"
@@ -201,15 +189,15 @@ export default async function ContactPage() {
           {/* Form */}
           <div className="flex flex-col gap-6 lg:sticky lg:top-28 lg:self-start">
             <div className="flex flex-col gap-3">
-              <Eyebrow>{content.formEyebrow}</Eyebrow>
+              {c.form.eyebrow && <Eyebrow>{c.form.eyebrow}</Eyebrow>}
               <Heading size="h2">
-                <AccentText text={autoAccent(content.formTitle)} />
+                <AccentText text={autoAccent(c.form.title)} />
               </Heading>
               <p className="text-surface-muted leading-relaxed">
-                {content.formBody}
+                {c.form.body}
               </p>
             </div>
-            <ContactFormEmbed />
+            <ContactFormEmbed labels={c.form} />
           </div>
         </Container>
       </section>
@@ -230,23 +218,25 @@ export default async function ContactPage() {
         </section>
       )}
 
-      <FaqSection title="Before you *get in touch*" faqs={FAQS} />
+      {!hidden.faq && <FaqSection title={c.faq.title} faqs={c.faq.items} />}
 
-      <section data-surface="royal" className="bg-surface text-surface-fg">
-        <Container className="flex flex-col items-start gap-6 py-14 md:flex-row md:items-center md:justify-between md:py-20">
-          <Heading size="h2" className="max-w-2xl">
-            <AccentText text="Prefer to browse first? *See our work*" />
-          </Heading>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button href="/works" arrow>
-              See our work
-            </Button>
-            <Button href="/offers" variant="outline">
-              View offers
-            </Button>
-          </div>
-        </Container>
-      </section>
+      {!hidden.browse && (
+        <section data-surface="royal" className="bg-surface text-surface-fg">
+          <Container className="flex flex-col items-start gap-6 py-14 md:flex-row md:items-center md:justify-between md:py-20">
+            <Heading size="h2" className="max-w-2xl">
+              <AccentText text={c.browse.title} />
+            </Heading>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button href={c.browse.primary.href} arrow>
+                {c.browse.primary.label}
+              </Button>
+              <Button href={c.browse.secondary.href} variant="outline">
+                {c.browse.secondary.label}
+              </Button>
+            </div>
+          </Container>
+        </section>
+      )}
     </main>
   );
 }

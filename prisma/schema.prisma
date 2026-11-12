@@ -28,19 +28,297 @@ model ContactMessage {
   @@index([isRead, createdAt])
 }
 
+/// Where an inbox item comes from.
+enum InboxSource {
+  MESSAGE // ContactMessage
+  REGISTRATION // EventRegistration
+  APPLICATION // SchoolWebsiteApplication
+}
+
+/// The admin inbox's own state for an item (read, assigned, done), kept
+/// apart so the source tables stay as they are. No row = the default:
+/// messages use ContactMessage.isRead; registrations and applications are
+/// unread while pending.
+model InboxItemState {
+  source     InboxSource
+  itemId     String
+  readAt     DateTime?
+  doneAt     DateTime?
+  assigneeId String?
+  assignee   AdminUser?  @relation("InboxAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  updatedAt  DateTime    @updatedAt
+
+  @@id([source, itemId])
+  @@index([assigneeId])
+}
+
+enum OutboundKind {
+  REPLY // an inbox reply
+  BROADCAST // an announcement to event attendees
+}
+
+enum OutboundStatus {
+  SENT
+  FAILED
+}
+
+/// Every email sent from the admin (one row per recipient), so replies show
+/// in the inbox and announcements keep their history.
+model OutboundEmail {
+  id          String         @id @default(uuid())
+  kind        OutboundKind
+  /// One announcement = one batch.
+  batchId     String?
+  /// The inbox item replied to.
+  source      InboxSource?
+  itemId      String?
+  /// The event an announcement went to (null = several events).
+  eventId     String?
+  toEmail     String
+  toName      String
+  subject     String
+  /// What the admin wrote (HTML from the email editor; older rows are
+  /// plain text), before tags are filled in.
+  body        String
+  /// Files sent with it: [{ name, url, bytes, mode: "attach" | "link" }].
+  attachments Json?
+  status      OutboundStatus
+  error       String?
+  sentById    String?
+  sentBy      AdminUser?     @relation("OutboundSentBy", fields: [sentById], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+
+  @@index([source, itemId])
+  @@index([batchId])
+  @@index([eventId])
+  @@index([createdAt])
+}
+
+// Admin is the owner (everything, including users, settings and the audit
+// log). Editors can publish within the areas listed in `access`.
+// More roles can be added later.
+enum AdminRole {
+  ADMIN
+  EDITOR
+}
+
 model AdminUser {
-  id                   String         @id @default(uuid())
-  email                String         @unique
+  id                   String               @id @default(uuid())
+  email                String               @unique
   password             String
   name                 String
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  referralLinksCreated ReferralLink[] @relation("ReferralLinkCreatedBy")
+  // Existing users become Admins when this is pushed; invites always set the
+  // role explicitly.
+  role                 AdminRole            @default(ADMIN)
+  // Areas an Editor may manage (e.g. "home", "catalogue"); ignored for Admins.
+  access               String[]             @default([])
+  isActive             Boolean              @default(true)
+  lastLoginAt          DateTime?
+  // Sessions issued before this time are rejected (password reset, disable).
+  sessionsValidFrom    DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  referralLinksCreated ReferralLink[]       @relation("ReferralLinkCreatedBy")
+  invitesSent          AdminInvite[]        @relation("AdminInviteSentBy")
+  passwordResets       AdminPasswordReset[]
+  mediaUploaded        MediaAsset[]         @relation("MediaUploadedBy")
+  inboxAssigned        InboxItemState[]     @relation("InboxAssignee")
+  emailsSent           OutboundEmail[]      @relation("OutboundSentBy")
 
   @@index([email])
 }
 
+model AdminInvite {
+  id          String     @id @default(uuid())
+  email       String
+  name        String?
+  role        AdminRole  @default(EDITOR)
+  access      String[]   @default([])
+  tokenHash   String     @unique // sha256 of the emailed token
+  invitedById String?
+  invitedBy   AdminUser? @relation("AdminInviteSentBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([email])
+}
+
+model AdminPasswordReset {
+  id        String    @id @default(uuid())
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // sha256 of the emailed token
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Who did what, when. Also records sign-ins and failed sign-ins (used for
+// login rate limiting, so it works across serverless instances).
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorEmail String?
+  actorName  String?
+  action     String // e.g. "auth.login", "users.invite", "about.updateHero"
+  area       String? // e.g. "about", "users", "auth"
+  summary    String?
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([area])
+  @@index([action, createdAt])
+}
+
 // @deprecated — migrated to Event + EventRegistration
+// ─── Media library (A1) ──────────────────────────────────────────────────────
+// Images live on Cloudinary; videos, documents (CVs, PDFs), audio and other
+// large files live on Cloudflare R2. Content keeps storing the Cloudinary
+// public ID (or the R2 URL) it already uses; this table is the catalogue.
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  DOCUMENT
+  AUDIO
+  MODEL
+  OTHER
+}
+
+enum MediaStorage {
+  CLOUDINARY
+  R2
+}
+
+model MediaFolder {
+  id        String       @id @default(uuid())
+  name      String
+  position  Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  assets    MediaAsset[]
+}
+
+model MediaAsset {
+  id           String       @id @default(uuid())
+  kind         MediaKind
+  storage      MediaStorage
+  // Cloudinary public ID, or the R2 object key.
+  key          String       @unique
+  // Public address of the original file.
+  url          String
+  fileName     String
+  mimeType     String?
+  bytes        Int?
+  width        Int?
+  height       Int?
+  // Seconds, for video and audio.
+  duration     Float?
+  // Cloudinary image used as the preview for videos stored on R2.
+  posterKey    String?
+  alt          String       @default("")
+  title        String?
+  caption      String?
+  tags         String[]     @default([])
+  folderId     String?
+  folder       MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploadedById String?
+  uploadedBy   AdminUser?   @relation("MediaUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([kind, createdAt])
+  @@index([folderId])
+  @@index([createdAt])
+}
+
+// ─── Services (A4) ──────────────────────────────────────────────────────────
+// The service groups (Design, Build, Print) and the services under them.
+// Menus, the Services page, pillar pages and the sitemap read these. Each
+// service page's text lives in PageSection under "service.<pillar>.<slug>".
+
+model ServicePillar {
+  id        String    @id @default(uuid())
+  // URL segment and fixed identity: "design", "build" or "print".
+  key       String    @unique
+  title     String
+  // Tailwind classes for the coloured pill in the menu.
+  pillClass String?
+  position  Int       @default(0)
+  isVisible Boolean   @default(true)
+  services  Service[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Service {
+  id           String        @id @default(uuid())
+  pillarId     String
+  pillar       ServicePillar @relation(fields: [pillarId], references: [id], onDelete: Cascade)
+  slug         String
+  // Name in menus and cards, e.g. "Brand identity".
+  title        String
+  // Lower-case name used in sentences, e.g. "branding".
+  shortName    String
+  // One line under the name in the menu and on cards.
+  description  String        @default("")
+  icon         String        @default("sparkles")
+  // Image on the pillar page and related-services cards.
+  cardImage    String        @default("")
+  // A menu item that links elsewhere instead of having its own page.
+  externalHref String?
+  position     Int           @default(0)
+  isVisible    Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([pillarId, slug])
+  @@index([pillarId, position])
+}
+
+// ─── Page sections (A2) ─────────────────────────────────────────────────────
+// Editable copy, images and settings for every page, keyed by page and
+// section (e.g. "home" / "hero", "site" / "business"). Each section keeps a
+// draft and a published copy; publishing snapshots a version for restore.
+// `draft` / `published` hold { data, hidden }.
+
+model PageSection {
+  id          String    @id @default(uuid())
+  page        String
+  key         String
+  draft       Json?
+  published   Json?
+  hasDraft    Boolean   @default(false)
+  publishedAt DateTime?
+  publishedBy String?
+  updatedBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([page, key])
+  @@index([page])
+}
+
+model PageSectionVersion {
+  id          String   @id @default(uuid())
+  page        String
+  key         String
+  content     Json
+  publishedBy String?
+  createdAt   DateTime @default(now())
+
+  @@index([page, key, createdAt])
+}
+
 model DevsDayRegistration {
   id          String   @id @default(uuid())
   name        String
@@ -198,6 +476,10 @@ model PortfolioItem {
   slug              String?          @unique
   tags              String           @default("[]") // JSON array string e.g. '["Logo","Branding"]'
   websiteUrl        String?
+  // A5: the service it's about ("pillar/slug" of a service page) and the
+  // occasion or sector (from Site settings → Project occasions).
+  service           String?
+  occasion          String?
   objectPosition    String           @default("center")
   mediaPublicId     String // legacy primary media field kept for compatibility during migration
   mediaType         MediaType        @default(IMAGE)
@@ -253,10 +535,11 @@ model Expression {
   features       String   @default("[]") // JSON array of strings
   facts          String   @default("[]") // JSON array of { value, label }
   story          String? // rich-text HTML for the product page
+  gallery        String   @default("[]") // JSON array of extra screenshot media values
   position       Int      @default(0)
-  isVisible    Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isVisible      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([position])
   @@index([isVisible])
@@ -993,19 +1276,19 @@ model AboutExpertiseItem {
 }
 
 model AboutTeamMember {
-  id                  String   @id @default(uuid())
+  id                  String             @id @default(uuid())
   name                String
   role                String
   bio                 String
-  expertise           String   @default("[]")
+  expertise           String             @default("[]")
   funFact             String
   portfolioUrl        String
-  showPortfolioButton Boolean  @default(true)
+  showPortfolioButton Boolean            @default(true)
   imagePublicId       String?
-  isVisible           Boolean  @default(true)
-  position            Int      @default(0)
+  isVisible           Boolean            @default(true)
+  position            Int                @default(0)
   // Personal portfolio page (/team/[slug]). All optional.
-  slug                String?  @unique
+  slug                String?            @unique
   headline            String? // one line under the name
   location            String? // "Dialing in from", e.g. "Port Harcourt, Nigeria"
   quote               String? // "In [name]'s words"
@@ -1015,20 +1298,33 @@ model AboutTeamMember {
   yearsExperience     Int?
   availability        String? // e.g. "Open to new projects"
   cvUrl               String? // link to a CV / résumé (PDF)
-  tools               String   @default("[]") // JSON: strings or { name, level } (level: Expert | Advanced | Intermediate | 0-100)
-  languages           String   @default("[]") // JSON: { name, level } e.g. { "English", "Native" }
-  experience          String   @default("[]") // JSON: { role, company, start, end, description }
-  education           String   @default("[]") // JSON: { degree, school, start, end, note }
-  certifications      String   @default("[]") // JSON: { name, issuer, year, url }
-  brands              String   @default("[]") // JSON array of brand names they've worked on
-  socials             String   @default("[]") // JSON array of { platform, url }
-  projects            String   @default("[]") // JSON array of { title, description, image, url }
+  tools               String             @default("[]") // JSON: strings or { name, level } (level: Expert | Advanced | Intermediate | 0-100)
+  languages           String             @default("[]") // JSON: { name, level } e.g. { "English", "Native" }
+  experience          String             @default("[]") // JSON: { role, company, start, end, description }
+  education           String             @default("[]") // JSON: { degree, school, start, end, note }
+  certifications      String             @default("[]") // JSON: { name, issuer, year, url }
+  brands              String             @default("[]") // JSON array of brand names they've worked on
+  socials             String             @default("[]") // JSON array of { platform, url }
+  projects            String             @default("[]") // JSON array of { title, description, image, url }
   posts               Post[] // Thoughts written by this team member
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  slugRedirects       TeamSlugRedirect[] // old profile addresses that now lead here
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([position])
   @@index([isVisible])
+}
+
+/// An old profile address (e.g. "daniel" after a rename to "daniel-azu").
+/// Visiting it redirects permanently to the person's current address. It
+/// points at the person, not an address, so renames never chain.
+model TeamSlugRedirect {
+  slug      String          @id
+  memberId  String
+  member    AboutTeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  @@index([memberId])
 }
 
 model AboutSpaceItem {
@@ -1083,6 +1379,14 @@ model Catalogue {
   /// Icon key used in menus (heart, party, flower, cake, monitor, briefcase…)
   icon          String              @default("heart")
   coverPublicId String?
+  /// Optional hero heading for its page (*asterisks* for the accent); empty = "<title> catalogue"
+  heroTitle     String?
+  /// Optional hero text; empty = description plus the shared line
+  heroText      String?
+  /// Shown as an image card in the Catalogues menu (first two)
+  isFeatured    Boolean             @default(false)
+  /// Shown in the homepage catalogue showcase
+  showOnHome    Boolean             @default(true)
   isVisible     Boolean             @default(true)
   position      Int                 @default(0)
   categories    CatalogueCategory[]
@@ -1128,6 +1432,8 @@ model CatalogueItem {
   tags        String             @default("[]") // JSON array of strings
   isFeatured  Boolean            @default(false)
   isVisible   Boolean            @default(true)
+  /// Copied from the built-in samples (placeholder price); cleared when edited
+  isSample    Boolean            @default(false)
   position    Int                @default(0)
   media       CatalogueMedia[]
   createdAt   DateTime           @default(now())

@@ -52,7 +52,7 @@ export function HomeHero({
                 block="mobile"
                 arrow
               >
-                Start a project
+                {hero.primaryLabel || "Start a project"}
               </Button>
               <Button
                 href={hero.ctaHref}

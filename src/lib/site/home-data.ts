@@ -3,12 +3,7 @@ import { unstable_cache } from "next/cache";
 import prisma from "@/lib/prisma";
 import { fetchSchoolWebsiteTestimonials } from "@/lib/api";
 import type { MediaItem } from "@/components/site/media-asset";
-import {
-  HERO_USE_SAMPLE_PROJECTS,
-  HOME_FALLBACK_HERO,
-  HOME_SAMPLE_PROJECTS,
-} from "./home-content";
-import { stock } from "./stock-media";
+import { HOME_FALLBACK_HERO } from "./home-content";
 import { getBrandLogos, type BrandLogo } from "./brands-data";
 import { imageUrl, toMediaItem } from "./media";
 
@@ -18,6 +13,8 @@ export type HomeHero = {
   /** Headline with *accent* markers. */
   headline: string;
   body: string;
+  /** Text of the main (WhatsApp) button. */
+  primaryLabel?: string;
   ctaText: string;
   ctaHref: string;
 };
@@ -80,7 +77,7 @@ const SERVICE_LABEL: Record<ServiceType, string> = {
 const SERVICE_ORDER: ServiceType[] = ["DESIGN", "BUILD", "PRINT"];
 
 /** "<p>Saturating ... <strong>Imprints</strong></p>" -> "Saturating ... *Imprints*" */
-function htmlToAccentText(html: string): string {
+export function htmlToAccentText(html: string): string {
   return decodeEntities(
     html
       .replace(/<\s*(strong|b|em)\b[^>]*>/gi, "*")
@@ -93,7 +90,7 @@ function htmlToAccentText(html: string): string {
   );
 }
 
-function stripHtml(html: string): string {
+export function stripHtml(html: string): string {
   return decodeEntities(
     html
       .replace(/<[^>]+>/g, " ")
@@ -115,7 +112,7 @@ function decodeEntities(text: string): string {
 }
 
 /** "IF YOU'VE GOT A VISION, WE'VE GOT THE CREATIVE AUDACITY" -> sentence case, last two words accented. */
-function manifestoToAccent(text: string): string {
+export function manifestoToAccent(text: string): string {
   const lower = text.trim().toLowerCase().replace(/\s+/g, " ");
   if (!lower) return "";
   const sentence = lower.charAt(0).toUpperCase() + lower.slice(1);
@@ -222,39 +219,27 @@ async function loadHomeData(): Promise<HomeData> {
     return { row, media };
   });
 
-  // Hero projects: sample projects (stock) until real work is uploaded,
-  // otherwise the admin's portfolio with every asset for the gallery.
-  const heroProjects: HeroProject[] = HERO_USE_SAMPLE_PROJECTS
-    ? HOME_SAMPLE_PROJECTS.map((p) => ({
-        id: p.id,
-        title: p.title,
-        category: p.category,
-        tags: p.tags,
-        description: p.description,
-        media: p.images.map((id) => ({
-          kind: "image" as const,
-          src: stock(id, 1200),
-          alt: p.title,
-        })),
-      }))
-    : portfolio.map(({ row, media }) => ({
-        id: row.id,
-        title: row.clientName || row.title,
-        category: SERVICE_LABEL[row.serviceType],
-        tags: parseTags(row.tags),
-        description: row.description ?? "",
-        media: [
-          media,
-          ...row.assets
-            .filter((a) => a.publicId !== row.coverAsset?.publicId)
-            .map((a) =>
-              toMediaItem(a.publicId, a.mediaType, row.title, {
-                width: 1200,
-                posterId: a.thumbnailPublicId,
-              }),
-            ),
-        ],
-      }));
+  // Real projects for the hero showcase, with every asset for the gallery.
+  // (The homepage's "Showcase projects" section chooses between these and
+  // a hand-picked list.)
+  const heroProjects: HeroProject[] = portfolio.map(({ row, media }) => ({
+    id: row.id,
+    title: row.clientName || row.title,
+    category: SERVICE_LABEL[row.serviceType],
+    tags: parseTags(row.tags),
+    description: row.description ?? "",
+    media: [
+      media,
+      ...row.assets
+        .filter((a) => a.publicId !== row.coverAsset?.publicId)
+        .map((a) =>
+          toMediaItem(a.publicId, a.mediaType, row.title, {
+            width: 1200,
+            posterId: a.thumbnailPublicId,
+          }),
+        ),
+    ],
+  }));
 
   const services: HomeService[] = SERVICE_ORDER.map((type) => {
     const row = serviceRows.find((s) => s.type === type);

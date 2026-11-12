@@ -34,9 +34,11 @@ export function shortDate(iso: string, timeZone = "Africa/Lagos") {
 export function EventCard({
   event,
   past,
+  endedLabel = "Ended",
 }: {
   event: EventSummary;
   past: boolean;
+  endedLabel?: string;
 }) {
   return (
     <Link
@@ -62,7 +64,7 @@ export function EventCard({
             past ? "bg-charcoal/80 text-white" : "bg-brand-cyan text-royal",
           )}
         >
-          {past ? "Ended · " : ""}
+          {past ? `${endedLabel} · ` : ""}
           {shortDate(event.dateTime, event.timezone)}
         </span>
         {event.sample && (
