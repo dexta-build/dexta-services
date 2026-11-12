@@ -878,11 +878,11 @@ describe("school template preview renderer", () => {
     assert.match(html, /!hasRichTextColorStyle\(value\)/);
     assert.match(
       html,
-      /node\.style\.setProperty\("color", color, "important"\)/,
+      /var promotedProperties = \[\s*"color",\s*"background-color",/,
     );
     assert.match(
       html,
-      /node\.style\.setProperty\("background-color", backgroundColor, "important"\)/,
+      /node\.style\.setProperty\(property, value, "important"\)/,
     );
   });
 });

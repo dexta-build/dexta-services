@@ -1,25 +1,95 @@
-import { Navbar } from "@/components/layout/navbar";
-import { EnhancedCursor } from "@/components/shared/enhanced-cursor";
-import { Footer } from "@/components/home/footer";
-import { fetchContactPageContent, fetchContactSocialLinks } from "@/lib/api";
+import { CursorLabel, SiteFooter, SiteHeader } from "@/components/site/shell";
+import { SiteNavProvider } from "@/components/site/shell/nav-context";
+import { PreviewBar } from "@/components/site/shell/preview-bar";
+import {
+  getSiteSettings,
+  getWhatsApp,
+  socialLinks,
+} from "@/lib/content/site-settings";
+import { isPreviewing } from "@/lib/content/store";
+import { getServiceMenu } from "@/lib/services/catalog";
+import { getCatalogueMenu } from "@/lib/site/catalogue-store";
+import { getEvents } from "@/lib/site/events-data";
+import type { ResourceHighlight } from "@/lib/site/navigation";
+import { getThoughts } from "@/lib/site/thoughts-data";
 
 export default async function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [contactContent, contactSocialLinks] = await Promise.all([
-    fetchContactPageContent(),
-    fetchContactSocialLinks(),
+  const [
+    site,
+    serviceMenu,
+    catalogueMenu,
+    whatsappHref,
+    preview,
+    thoughts,
+    events,
+  ] = await Promise.all([
+    getSiteSettings(),
+    getServiceMenu(),
+    getCatalogueMenu(),
+    getWhatsApp("general"),
+    isPreviewing(),
+    getThoughts(),
+    getEvents(),
   ]);
+  const nav = {
+    ...site.header,
+    serviceGroups: serviceMenu,
+    catalogues: catalogueMenu,
+  };
+  const contactSocialLinks = socialLinks(site.business);
+  const contactContent = {
+    address: site.business.address,
+    emails: site.business.emails,
+    phones: site.business.phones,
+  };
+
+  // Resources menu cards: the next event, then the latest article(s).
+  const now = Date.now();
+  const nextEvent = events
+    .filter((e) => Date.parse(e.dateTime) > now)
+    .sort((a, b) => Date.parse(a.dateTime) - Date.parse(b.dateTime))[0];
+  const highlights: ResourceHighlight[] = [
+    ...(nextEvent
+      ? [
+          {
+            label: "Upcoming event",
+            title: nextEvent.title,
+            href: `/events/${nextEvent.slug}`,
+            image: nextEvent.image ?? thoughts[0]?.cover ?? "",
+          },
+        ]
+      : []),
+    ...thoughts.slice(0, 2).map((t) => ({
+      label: "Latest article",
+      title: t.title,
+      href: `/thoughts/${t.slug}`,
+      image: t.cover,
+    })),
+  ]
+    .filter((h) => h.image)
+    .slice(0, 2);
 
   return (
-    <>
-      <EnhancedCursor />
-      <Navbar />
-      <div className="h-16 sm:h-20" />
+    <SiteNavProvider value={nav}>
+      {preview && <PreviewBar />}
+      <CursorLabel />
+      <SiteHeader
+        whatsappHref={whatsappHref}
+        socials={contactSocialLinks}
+        highlights={highlights}
+      />
       {children}
-      <Footer contact={contactContent} socialLinks={contactSocialLinks} />
-    </>
+      <SiteFooter
+        contact={contactContent}
+        socials={contactSocialLinks}
+        whatsappHref={whatsappHref}
+        nav={nav}
+        footer={site.footer}
+      />
+    </SiteNavProvider>
   );
 }

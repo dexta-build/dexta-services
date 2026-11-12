@@ -1,4 +1,6 @@
-import { buildRegularEmailHtml, sendEmail } from "@/lib/email";
+import { createElement } from "react";
+import { sendTemplate } from "@/lib/email";
+import { ReferralExpiryEmail } from "@/emails/schools";
 import { weBrandSchoolsPrisma } from "@/lib/we-brand-schools-prisma";
 
 type ReferralExpiryNotificationType =
@@ -15,15 +17,6 @@ type ReferralExpiryRow = {
   expiresAt: Date | null;
   notificationEnabled: boolean;
 };
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("en-US", {
@@ -153,30 +146,18 @@ async function sendReferralExpiryNotification({
     ? `Referral link expired — ${referral.displayName}`
     : `Referral link expires soon — ${referral.displayName}`;
   const referralUrl = getPublicReferralUrl(referral);
-  const heading = isExpired
-    ? "A referral link has expired"
-    : "A referral link will expire soon";
 
   try {
-    await sendEmail({
+    await sendTemplate({
       to: recipient,
       subject,
-      htmlContent: buildRegularEmailHtml({
-        heading,
-        body: `
-          <p style="margin:0 0 16px;">Hello ${escapeHtml(recipient.name ?? "there")},</p>
-          <p style="margin:0 0 16px;">
-            ${
-              isExpired
-                ? "This referral link has reached its expiration date and will no longer attribute new users."
-                : "This referral link is scheduled to expire soon. New users will stop being attributed after the time below."
-            }
-          </p>
-          <p style="margin:0 0 8px;"><strong>Name/organization:</strong> ${escapeHtml(referral.displayName)}</p>
-          <p style="margin:0 0 8px;"><strong>Referral link:</strong> ${escapeHtml(referralUrl)}</p>
-          <p style="margin:0 0 8px;"><strong>Expires:</strong> ${escapeHtml(formatDate(referral.expiresAt))}</p>
-          <p style="margin:0 0 16px;"><strong>Notice sent to:</strong> ${audience === "admin" ? "Admin/team" : "Referral owner"}</p>
-          <p style="margin:0;">Existing submitted applications keep their saved referral attribution. Only new referral attribution is affected.</p>`,
+      email: createElement(ReferralExpiryEmail, {
+        name: recipient.name ?? "there",
+        expired: isExpired,
+        displayName: referral.displayName,
+        referralUrl,
+        expires: formatDate(referral.expiresAt),
+        forTeam: audience === "admin",
       }),
     });
 

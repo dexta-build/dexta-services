@@ -10,7 +10,7 @@ cloudinary.config({
 
 export async function POST(request: globalThis.Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(null, "deleteMedia");
 
     const { publicId, resourceType } = await request.json();
 

@@ -66,30 +66,6 @@ export const CONTACT_PAGE_CONTENT_DEFAULTS: ContactPageContentData = {
   socialsLabel: "Follow Us",
 };
 
-export const CONTACT_SOCIAL_DEFAULTS: ContactSocialLinkData[] = [
-  {
-    platform: "LINKEDIN",
-    label: "LinkedIn",
-    href: "#",
-    isVisible: true,
-    position: 0,
-  },
-  {
-    platform: "X",
-    label: "Twitter / X",
-    href: "#",
-    isVisible: true,
-    position: 1,
-  },
-  {
-    platform: "INSTAGRAM",
-    label: "Instagram",
-    href: "#",
-    isVisible: true,
-    position: 2,
-  },
-];
-
 export function parseJsonStringArray(value: string): string[] {
   try {
     const parsed = JSON.parse(value);
@@ -100,15 +76,4 @@ export function parseJsonStringArray(value: string): string[] {
   } catch {
     return [];
   }
-}
-
-export function parseLineList(value: string): string[] {
-  return value
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-export function stringifyLineList(items: string[]): string {
-  return items.join("\n");
 }

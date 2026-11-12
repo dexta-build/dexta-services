@@ -241,7 +241,6 @@ export async function submitContactForm(
 
     revalidatePath("/admin", "layout");
     revalidatePath("/admin");
-    revalidatePath("/admin/contact");
 
     const adminNotificationEmail = await getContactNotificationEmail();
 
