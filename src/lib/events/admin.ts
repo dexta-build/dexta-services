@@ -30,6 +30,10 @@ export type EventForm = {
   image: string;
   attendeeLimit: number | null;
   status: EventStatusValue;
+  isPaid: boolean;
+  priceNGN: number | null;
+  priceNote: string;
+  paymentLink: string;
   fields: FormFieldDef[];
 };
 
@@ -82,7 +86,10 @@ export async function readEventsForAdmin(): Promise<AdminEventRow[]> {
 export async function readEventForEditor(id: string) {
   const e = await prisma.event.findUnique({
     where: { id },
-    include: { formFields: { orderBy: { position: "asc" } } },
+    include: {
+      formFields: { orderBy: { position: "asc" } },
+      slugRedirects: { orderBy: { createdAt: "desc" }, select: { slug: true } },
+    },
   });
   if (!e) return null;
   const count = await counts([e.id]);
@@ -96,6 +103,10 @@ export async function readEventForEditor(id: string) {
     image: e.imagePublicId ?? "",
     attendeeLimit: e.attendeeLimit,
     status: e.status,
+    isPaid: e.isPaid,
+    priceNGN: e.priceNGN,
+    priceNote: e.priceNote ?? "",
+    paymentLink: e.paymentLink ?? "",
     fields: e.formFields.map((f) => ({
       name: f.name,
       label: f.label,
@@ -108,6 +119,8 @@ export async function readEventForEditor(id: string) {
   return {
     id: e.id,
     form,
+    /** Earlier addresses that forward to this event. */
+    oldSlugs: e.slugRedirects.map((r) => r.slug),
     counts: {
       pending: count(e.id, "PENDING"),
       accepted: count(e.id, "ACCEPTED"),

@@ -19,15 +19,24 @@ export default async function WeBrandSchoolsContentPage() {
         title="The *page*"
         description="The logo, hero, overview, process steps and template intro on the We Brand Schools page."
         actions={
-          <Button
-            href="/webrandschools"
-            size="sm"
-            variant="subtle"
-            arrow
-            external
-          >
-            View page
-          </Button>
+          <>
+            <Button
+              href="/admin/pages/webrandschools"
+              size="sm"
+              variant="subtle"
+            >
+              Headings, buttons & search
+            </Button>
+            <Button
+              href="/webrandschools"
+              size="sm"
+              variant="subtle"
+              arrow
+              external
+            >
+              View page
+            </Button>
+          </>
         }
       />
       <WeBrandSchoolsContentForm content={content} />

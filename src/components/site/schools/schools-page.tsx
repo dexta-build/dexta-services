@@ -6,6 +6,8 @@ import { Toaster } from "sonner";
 import { CheckCircle2, Mail, MessageCircle, Phone, Play } from "lucide-react";
 import { recordSchoolWebsiteTemplateSelection } from "@/app/(public)/webrandschools/actions";
 import { RecaptchaProvider } from "@/components/layout/recaptcha-provider";
+import { AnalyticsTracker } from "@/components/site/analytics-tracker";
+import { AccentText } from "@/components/site/accent-text";
 import { Button } from "@/components/site/button";
 import { Container } from "@/components/site/container";
 import { Marquee } from "@/components/site/marquee";
@@ -42,7 +44,26 @@ import {
   resolveTemplateCardPreview,
 } from "./parts";
 
+export type SchoolsPageLabels = {
+  testimonialsEyebrow: string;
+  testimonialsTitle: string;
+  processButton: string;
+  templatesHelpButton: string;
+  previewButton: string;
+  chooseButton: string;
+  showMoreButton: string;
+  emptyTitle: string;
+  emptyBody: string;
+  emptyButton: string;
+  helpEyebrow: string;
+  helpTitle: string;
+  helpBody: string;
+  helpChatButton: string;
+  helpBackButton: string;
+};
+
 export type SchoolsPageProps = {
+  labels: SchoolsPageLabels;
   content: WeBrandSchoolsPageContentData;
   testimonials: SchoolWebsiteTestimonialData[];
   templates: SchoolWebsiteTemplateData[];
@@ -71,6 +92,7 @@ const filled = (items: string[]) => items.filter((i) => i.trim().length > 0);
  * copy, media, templates, portal and testimonials all come from the admin.
  */
 function SchoolsPageContent({
+  labels: l,
   content,
   testimonials,
   templates,
@@ -322,9 +344,11 @@ function SchoolsPageContent({
         <Section surface="ice" className="overflow-hidden">
           <Container>
             <Reveal className="flex max-w-3xl flex-col gap-4">
-              <p className={eyebrow}>Testimonials</p>
+              {l.testimonialsEyebrow && (
+                <p className={eyebrow}>{l.testimonialsEyebrow}</p>
+              )}
               <h2 className={h1}>
-                Trusted by schools <em>across Nigeria</em>
+                <AccentText text={l.testimonialsTitle} />
               </h2>
             </Reveal>
           </Container>
@@ -442,7 +466,7 @@ function SchoolsPageContent({
               ) : null}
             </Reveal>
             <Button href="#templates" arrow>
-              Start here
+              {l.processButton}
             </Button>
           </div>
           <RevealGroup className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -506,7 +530,7 @@ function SchoolsPageContent({
               external={helpHref.startsWith("http")}
               variant="outline"
             >
-              Need help choosing?
+              {l.templatesHelpButton}
             </Button>
           </div>
 
@@ -555,10 +579,10 @@ function SchoolsPageContent({
                               variant="subtle"
                               onClick={() => setPreviewTemplate(t)}
                             >
-                              Preview
+                              {l.previewButton}
                             </Button>
                             <Button size="sm" onClick={() => selectTemplate(t)}>
-                              Choose this
+                              {l.chooseButton}
                             </Button>
                           </div>
                         </div>
@@ -577,20 +601,17 @@ function SchoolsPageContent({
                       )
                     }
                   >
-                    Show more templates
+                    {l.showMoreButton}
                   </Button>
                 </div>
               )}
             </>
           ) : (
             <div className="border-surface-rule mt-10 flex flex-col items-center gap-4 rounded-[10px] border border-dashed px-6 py-14 text-center">
-              <p className="text-h3 font-bold">Templates are on their way</p>
-              <p className="text-surface-muted max-w-md">
-                We&apos;re adding website templates here. Talk to us and
-                we&apos;ll show you what&apos;s ready.
-              </p>
+              <p className="text-h3 font-bold">{l.emptyTitle}</p>
+              <p className="text-surface-muted max-w-md">{l.emptyBody}</p>
               <Button href={helpHref} external={helpHref.startsWith("http")}>
-                Talk to us
+                {l.emptyButton}
               </Button>
             </div>
           )}
@@ -609,13 +630,12 @@ function SchoolsPageContent({
             className="bg-surface text-surface-fg grid gap-10 rounded-[10px] p-6 md:p-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center xl:p-16"
           >
             <div className="flex flex-col items-start gap-5">
-              <p className={eyebrow}>Need help?</p>
+              {l.helpEyebrow && <p className={eyebrow}>{l.helpEyebrow}</p>}
               <h2 className={h1}>
-                Questions before you <em>apply</em>?
+                <AccentText text={l.helpTitle} />
               </h2>
               <p className="text-surface-muted text-lg leading-relaxed">
-                Talk to the team. We&apos;ll help you pick a template and walk
-                you through what happens next.
+                {l.helpBody}
               </p>
               <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
                 <Button
@@ -625,7 +645,7 @@ function SchoolsPageContent({
                   arrow
                   block="mobile"
                 >
-                  Chat with us
+                  {l.helpChatButton}
                 </Button>
                 <Button
                   href="#templates"
@@ -633,7 +653,7 @@ function SchoolsPageContent({
                   variant="outline"
                   block="mobile"
                 >
-                  Back to templates
+                  {l.helpBackButton}
                 </Button>
               </div>
             </div>
@@ -762,6 +782,7 @@ function SchoolsPageContent({
 export function SchoolsPage(props: SchoolsPageProps) {
   return (
     <RecaptchaProvider>
+      <AnalyticsTracker />
       <SchoolsPageContent {...props} />
       <Toaster position="top-center" richColors />
     </RecaptchaProvider>

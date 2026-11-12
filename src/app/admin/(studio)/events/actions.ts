@@ -1,5 +1,6 @@
 "use server";
 
+import { eventPriceLabel } from "@/lib/events/price";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -78,6 +79,17 @@ const schema = z.object({
     .max(1_000_000)
     .nullable(),
   status: z.enum(["DRAFT", "PUBLISHED", "CLOSED"]),
+  isPaid: z.boolean(),
+  priceNGN: z.number().int().min(0).max(1_000_000_000).nullable(),
+  priceNote: z.string().trim().max(120),
+  paymentLink: z
+    .string()
+    .trim()
+    .max(1000)
+    .refine(
+      (v) => !v || /^https:\/\/[^\s]+\.[^\s]+/.test(v),
+      "Use a full https:// link",
+    ),
   fields: z.array(fieldSchema).max(30),
 });
 
@@ -105,8 +117,19 @@ export async function saveEvent(
     if (f.type === "SELECT" && f.options.length === 0)
       errors[`fields.${i}.options`] = "Add at least one choice";
   });
+  if (d.isPaid) {
+    if (!d.priceNGN) errors.priceNGN = "Enter the price";
+    if (!d.paymentLink) errors.paymentLink = "Add the payment link";
+  }
   if (Object.keys(errors).length)
-    return { success: false, message: "Check the registration form.", errors };
+    return {
+      success: false,
+      message:
+        errors.priceNGN || errors.paymentLink
+          ? "A paid event needs its price and payment link."
+          : "Check the registration form.",
+      errors,
+    };
 
   const slug = slugify(d.slug || d.title);
   if (!slug)
@@ -121,6 +144,19 @@ export async function saveEvent(
       message: `Another event already uses /events/${slug}.`,
       errors: { slug: "Already used" },
     };
+  // An old address of another event still forwards there, so keep it.
+  const oldClash = await prisma.eventSlugRedirect
+    .findUnique({ where: { slug }, select: { eventId: true } })
+    .catch(() => null);
+  if (oldClash && oldClash.eventId !== id)
+    return {
+      success: false,
+      message: `/events/${slug} used to belong to another event and still forwards there. Pick another address.`,
+      errors: { slug: "Used before by another event" },
+    };
+  const previous = id
+    ? await prisma.event.findUnique({ where: { id }, select: { slug: true } })
+    : null;
 
   const data = {
     title: d.title,
@@ -132,6 +168,10 @@ export async function saveEvent(
     imagePublicId: d.image || null,
     attendeeLimit: d.attendeeLimit,
     status: d.status,
+    isPaid: d.isPaid,
+    priceNGN: d.isPaid ? d.priceNGN : null,
+    priceNote: d.priceNote || null,
+    paymentLink: d.isPaid ? d.paymentLink || null : null,
   };
   const fieldRows = d.fields.map((f, position) => ({
     name: f.name,
@@ -147,6 +187,15 @@ export async function saveEvent(
       const event = id
         ? await tx.event.update({ where: { id }, data })
         : await tx.event.create({ data });
+      // A new address: the old one keeps working and forwards here, and
+      // this event's own old address can be taken back.
+      if (previous && previous.slug !== slug)
+        await tx.eventSlugRedirect.upsert({
+          where: { slug: previous.slug },
+          create: { slug: previous.slug, eventId: event.id },
+          update: { eventId: event.id },
+        });
+      await tx.eventSlugRedirect.deleteMany({ where: { slug } });
       await tx.eventFormField.deleteMany({ where: { eventId: event.id } });
       if (fieldRows.length)
         await tx.eventFormField.createMany({
@@ -157,7 +206,7 @@ export async function saveEvent(
     await logAudit({
       action: id ? "events.updated" : "events.created",
       area: "events",
-      summary: `${id ? "Edited" : "Added"} the event ${d.title}`,
+      summary: `${id ? "Edited" : "Added"} the event ${d.title}${previous && previous.slug !== slug ? ` (address /events/${previous.slug} → /events/${slug})` : ""}`,
       entityType: "Event",
       entityId: row.id,
       actor: a,
@@ -272,11 +321,21 @@ const eventInfo = (e: {
   dateTime: Date;
   timezone: string;
   location: string;
+  isPaid?: boolean;
+  priceNGN?: number | null;
+  paymentLink?: string | null;
 }) => ({
   title: e.title,
   dateTime: e.dateTime,
   timezone: e.timezone,
   location: e.location,
+  payment:
+    e.isPaid && e.paymentLink
+      ? {
+          price: eventPriceLabel(true, e.priceNGN ?? null),
+          link: e.paymentLink,
+        }
+      : undefined,
 });
 
 /**
@@ -464,5 +523,29 @@ export async function deleteRegistrations(ids: string[]): Promise<Ok | Fail> {
     actor: a,
   });
   refresh();
+  return { success: true };
+}
+
+/** Stop an old address forwarding (it can then be used again). */
+export async function removeEventRedirect(
+  eventId: string,
+  slug: string,
+): Promise<Ok | Fail> {
+  const a = await actor();
+  if (failed(a)) return a;
+  try {
+    await prisma.eventSlugRedirect.deleteMany({ where: { slug, eventId } });
+  } catch {
+    return { success: false, message: "That couldn't be removed." };
+  }
+  await logAudit({
+    action: "events.redirect_removed",
+    area: "events",
+    summary: `Stopped /events/${slug} forwarding to its event`,
+    entityType: "Event",
+    entityId: eventId,
+    actor: a,
+  });
+  refresh(eventId);
   return { success: true };
 }

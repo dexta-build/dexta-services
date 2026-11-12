@@ -5,13 +5,14 @@ import {
   ChevronRight,
   Globe2,
   MapPin,
+  Ticket,
   Users,
 } from "lucide-react";
 import { Button } from "../button";
 import { Container } from "../container";
 import { Eyebrow } from "../eyebrow";
 import { Heading } from "../heading";
-import { MediaAsset } from "../media-asset";
+import { EventPoster } from "./event-poster";
 import {
   EVENT_PAGE_LABELS,
   type EventPageLabels,
@@ -24,7 +25,13 @@ export type EventDetailProps = {
   dateLabel: string;
   location: string;
   format: string;
+  /** The image whole (not cropped): photo, poster or flyer. */
   image: string;
+  /** "Free" or e.g. "₦25,000". */
+  price: string;
+  priceNote?: string;
+  /** Paid events: where people pay after registering. */
+  paymentLink?: string;
   ended: boolean;
   spacesLabel: string;
   calendarHref: string;
@@ -46,6 +53,9 @@ export function EventDetail({
   location,
   format,
   image,
+  price,
+  priceNote,
+  paymentLink,
   ended,
   spacesLabel,
   calendarHref,
@@ -57,61 +67,97 @@ export function EventDetail({
     <main className="dx-site">
       <section
         data-surface="royal"
-        className="bg-surface text-surface-fg relative isolate flex min-h-[24rem] items-end overflow-hidden md:min-h-[30rem]"
+        className="bg-surface text-surface-fg relative isolate overflow-hidden"
       >
-        <span className="absolute inset-0 -z-20">
-          <MediaAsset
-            media={{ kind: "image", src: image, alt: "" }}
-            sizes="100vw"
-            priority
+        {/* A soft, blurred copy of the image behind everything */}
+        <span aria-hidden className="absolute inset-0 -z-20">
+          {/* eslint-disable-next-line @next/next/no-img-element -- decorative backdrop */}
+          <img
+            src={image}
+            alt=""
+            className="size-full scale-110 object-cover opacity-40 blur-2xl"
           />
         </span>
         <span
           aria-hidden
-          className="absolute inset-0 -z-10 bg-gradient-to-t from-[#00042f]/95 via-[#00042f]/60 to-[#00042f]/20"
+          className="absolute inset-0 -z-10 bg-gradient-to-b from-[#00042f]/70 via-[#00042f]/80 to-[#00042f]/95"
         />
-        <Container className="flex flex-col gap-5 pt-24 pb-10 md:pb-14">
-          <nav aria-label="Breadcrumb">
-            <ol className="text-surface-fg/75 flex items-center gap-1 text-sm">
-              <li>
-                <Link href="/events" className="dx-link hover:text-surface-fg">
-                  Events
-                </Link>
-              </li>
-              <li className="flex min-w-0 items-center gap-1">
-                <ChevronRight aria-hidden className="size-3.5 shrink-0" />
-                <span aria-current="page" className="truncate">
-                  {title}
-                </span>
-              </li>
-            </ol>
-          </nav>
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={
-                ended
-                  ? "bg-surface-fg/15 rounded-full px-3 py-1 text-xs font-bold"
-                  : "bg-brand-cyan text-royal rounded-full px-3 py-1 text-xs font-bold"
-              }
-            >
-              {ended ? L.ended : dateLabel}
-            </span>
-            <span className="border-surface-fg/40 rounded-full border px-3 py-1 text-xs font-bold">
-              {format}
-            </span>
-            {sample && (
-              <span className="bg-surface-fg/15 rounded-full px-3 py-1 text-xs font-bold">
-                Sample event
+        <Container className="grid gap-10 pt-28 pb-12 md:pt-32 md:pb-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center lg:gap-14">
+          <div className="flex min-w-0 flex-col gap-5">
+            <nav aria-label="Breadcrumb">
+              <ol className="text-surface-fg/75 flex items-center gap-1 text-sm">
+                <li>
+                  <Link
+                    href="/events"
+                    className="dx-link hover:text-surface-fg"
+                  >
+                    Events
+                  </Link>
+                </li>
+                <li className="flex min-w-0 items-center gap-1">
+                  <ChevronRight aria-hidden className="size-3.5 shrink-0" />
+                  <span aria-current="page" className="truncate">
+                    {title}
+                  </span>
+                </li>
+              </ol>
+            </nav>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={
+                  ended
+                    ? "bg-surface-fg/15 rounded-full px-3 py-1 text-xs font-bold"
+                    : "bg-brand-cyan text-royal rounded-full px-3 py-1 text-xs font-bold"
+                }
+              >
+                {ended ? L.ended : dateLabel}
               </span>
+              <span className="border-surface-fg/40 rounded-full border px-3 py-1 text-xs font-bold">
+                {format}
+              </span>
+              <span className="border-surface-fg/40 rounded-full border px-3 py-1 text-xs font-bold">
+                {price}
+              </span>
+              {sample && (
+                <span className="bg-surface-fg/15 rounded-full px-3 py-1 text-xs font-bold">
+                  Sample event
+                </span>
+              )}
+            </div>
+            <Heading size="display" as="h1" className="max-w-4xl">
+              {title}
+            </Heading>
+            <ul className="text-surface-fg/85 flex flex-col gap-2 text-sm md:text-base">
+              <li className="flex items-center gap-2">
+                <CalendarDays aria-hidden className="size-4 shrink-0" />
+                {dateLabel}
+              </li>
+              <li className="flex items-center gap-2">
+                <MapPin aria-hidden className="size-4 shrink-0" />
+                {location}
+              </li>
+            </ul>
+            {!ended && (
+              <div className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                <Button href="#register" size="lg" arrow block="mobile">
+                  {price === "Free" ? "Register free" : `Register · ${price}`}
+                </Button>
+                <Button
+                  href={calendarHref}
+                  external
+                  size="lg"
+                  variant="outline"
+                  block="mobile"
+                >
+                  <CalendarPlus aria-hidden className="size-4" />
+                  {L.calendar}
+                </Button>
+              </div>
             )}
           </div>
-          <Heading size="display" as="h1" className="max-w-4xl">
-            {title}
-          </Heading>
-          <p className="text-surface-fg/80 flex items-center gap-2 text-sm md:text-base">
-            <MapPin aria-hidden className="size-4 shrink-0" />
-            {location}
-          </p>
+          <div className="mx-auto w-full max-w-md lg:max-w-none">
+            <EventPoster src={image} title={title} />
+          </div>
         </Container>
       </section>
 
@@ -143,19 +189,19 @@ export function EventDetail({
             <Detail icon={<Users className="size-4" />} label={L.spacesLabel}>
               {spacesLabel}
             </Detail>
-          </dl>
-
-          {!ended && (
-            <a
-              href={calendarHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="dx-link inline-flex items-center gap-2 self-start text-sm font-bold"
+            <Detail
+              icon={<Ticket className="size-4" />}
+              label="Entry"
+              className="sm:col-span-2"
             >
-              <CalendarPlus aria-hidden className="size-4" />
-              {L.calendar}
-            </a>
-          )}
+              {price}
+              {priceNote && (
+                <span className="text-surface-muted mt-0.5 block text-xs font-normal">
+                  {priceNote}
+                </span>
+              )}
+            </Detail>
+          </dl>
         </div>
 
         <div
@@ -176,7 +222,22 @@ export function EventDetail({
               </Button>
             </div>
           ) : (
-            registration
+            <div className="flex flex-col gap-4">
+              {paymentLink && (
+                <div
+                  data-surface="ice"
+                  className="bg-surface text-surface-fg flex items-start gap-3 rounded-[10px] p-5"
+                >
+                  <Ticket aria-hidden className="mt-0.5 size-5 shrink-0" />
+                  <p className="text-sm leading-relaxed">
+                    <strong>This is a paid event ({price}).</strong> Register
+                    below, then pay with the link we show you; your seat is
+                    confirmed once payment is received.
+                  </p>
+                </div>
+              )}
+              {registration}
+            </div>
           )}
         </div>
       </Container>
@@ -188,13 +249,15 @@ function Detail({
   icon,
   label,
   children,
+  className,
 }: {
   icon: React.ReactNode;
   label: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="bg-canvas p-5">
+    <div className={`bg-canvas p-5 ${className ?? ""}`}>
       <dt className="text-surface-muted flex items-center gap-2 text-xs">
         <span aria-hidden className="text-brand">
           {icon}

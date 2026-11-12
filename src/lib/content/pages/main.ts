@@ -1104,6 +1104,77 @@ export const CONTACT_PAGE = page({
   ],
 });
 
+/** Headings and buttons on /webrandschools that aren't in the We Brand Schools content. */
+export const WE_BRAND_SCHOOLS_PAGE = page({
+  key: "webrandschools",
+  label: "We Brand Schools",
+  path: "/webrandschools",
+  area: "schools",
+  group: "Pages",
+  description:
+    "Headings and buttons around the page. The hero, steps, templates, portal and testimonials are edited under We Brand Schools.",
+  sections: [
+    section({
+      key: "labels",
+      label: "Headings and buttons",
+      description:
+        "Words that frame the sections managed under We Brand Schools.",
+      canHide: false,
+      fields: {
+        testimonialsEyebrow: f.eyebrow(),
+        testimonialsTitle: f.heading("Testimonials heading"),
+        processButton: f.text("How it works button", { max: 40 }),
+        templatesHelpButton: f.text("Templates help button", {
+          max: 40,
+          hint: "Opens WhatsApp (from Site settings).",
+        }),
+        previewButton: f.text("Template preview button", { max: 30 }),
+        chooseButton: f.text("Template choose button", { max: 30 }),
+        showMoreButton: f.text("Show more templates button", { max: 40 }),
+        emptyTitle: f.text("When there are no templates: heading", {
+          max: 80,
+        }),
+        emptyBody: f.textarea("When there are no templates: text", {
+          max: 200,
+          rows: 2,
+        }),
+        emptyButton: f.text("When there are no templates: button", {
+          max: 40,
+        }),
+        helpEyebrow: f.text("Help block: small label", { max: 60 }),
+        helpTitle: f.heading("Help block: heading"),
+        helpBody: f.textarea("Help block: text", { max: 240, rows: 3 }),
+        helpChatButton: f.text("Help block: chat button", { max: 40 }),
+        helpBackButton: f.text("Help block: back button", { max: 40 }),
+      },
+      defaults: {
+        testimonialsEyebrow: "Testimonials",
+        testimonialsTitle: "Trusted by schools *across Nigeria*",
+        processButton: "Start here",
+        templatesHelpButton: "Need help choosing?",
+        previewButton: "Preview",
+        chooseButton: "Choose this",
+        showMoreButton: "Show more templates",
+        emptyTitle: "Templates are on their way",
+        emptyBody:
+          "We're adding website templates here. Talk to us and we'll show you what's ready.",
+        emptyButton: "Talk to us",
+        helpEyebrow: "Need help?",
+        helpTitle: "Questions before you *apply*?",
+        helpBody:
+          "Talk to the team. We'll help you pick a template and walk you through what happens next.",
+        helpChatButton: "Chat with us",
+        helpBackButton: "Back to templates",
+      },
+    }),
+    seoSection({
+      title: "We Brand Schools",
+      description:
+        "Free, professionally designed websites for private schools, with a complete school portal. You only pay for your domain and hosting.",
+    }),
+  ],
+});
+
 export const MAIN_PAGES = [
   SERVICES_PAGE,
   WORKS_PAGE,
@@ -1114,4 +1185,5 @@ export const MAIN_PAGES = [
   EXPRESSIONS_PAGE,
   ABOUT_PAGE,
   CONTACT_PAGE,
+  WE_BRAND_SCHOOLS_PAGE,
 ];

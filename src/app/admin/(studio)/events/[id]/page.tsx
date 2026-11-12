@@ -22,6 +22,7 @@ export default async function EditEventPage({
       key={event.id}
       id={event.id}
       initial={event.form}
+      oldSlugs={event.oldSlugs}
       counts={event.counts}
       registrations={regs?.registrations ?? []}
       fieldsMap={regs?.fields ?? {}}

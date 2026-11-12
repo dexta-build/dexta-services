@@ -4,10 +4,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "radix-ui";
 import { signOut } from "next-auth/react";
-import { CornerDownLeft, ExternalLink, LogOut, Search } from "lucide-react";
+import {
+  CornerDownLeft,
+  ExternalLink,
+  LifeBuoy,
+  LogOut,
+  Search,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Kbd } from "@/components/admin/kit/layout";
-import { ACCOUNT_LINK, AccountIcon, type NavGroup } from "./nav";
+import { ACCOUNT_LINK, AccountIcon, HELP_LINK, type NavGroup } from "./nav";
 
 type Command = {
   id: string;
@@ -61,6 +67,14 @@ export function CommandPalette({
         keywords: `account ${ACCOUNT_LINK.keywords}`,
         icon: AccountIcon,
         run: go(ACCOUNT_LINK.href),
+      },
+      {
+        id: HELP_LINK.href,
+        label: HELP_LINK.label,
+        group: "Go to",
+        keywords: HELP_LINK.keywords ?? "",
+        icon: LifeBuoy,
+        run: go(HELP_LINK.href),
       },
       {
         id: "view-site",

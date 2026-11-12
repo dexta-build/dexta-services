@@ -107,8 +107,7 @@ const PATH_AREAS: [prefix: string, area: AdminArea][] = [
   ["/admin/settings", "settings"],
   ["/admin/kit", "settings"],
   ["/admin/services", "services"],
-  ["/admin/home", "home"],
-  ["/admin/catalogue", "catalogue"],
+  ["/admin/catalogues", "catalogue"],
   ["/admin/offers", "offers"],
   ["/admin/expressions", "works"],
   ["/admin/works", "works"],
@@ -116,9 +115,7 @@ const PATH_AREAS: [prefix: string, area: AdminArea][] = [
   ["/admin/thoughts", "thoughts"],
   ["/admin/events", "events"],
   ["/admin/registrations", "events"],
-  ["/admin/about", "about"],
   ["/admin/team", "about"],
-  ["/admin/contact", "contact"],
   ["/admin/messaging", "events"],
   // /admin/inbox: open to anyone with inbox, contact, events or schools
   // access; the page shows each person only their part (lib/inbox).

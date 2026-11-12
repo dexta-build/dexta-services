@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { RecaptchaProvider } from "@/components/layout/recaptcha-provider";
 import {
   EventDetail,
@@ -14,6 +14,7 @@ import prisma from "@/lib/prisma";
 import { eventDateLabel, formatFor, getEvents } from "@/lib/site/events-data";
 import { STOCK, stock } from "@/lib/site/stock-media";
 import { formatDateInTimezone } from "@/lib/timezone";
+import { eventPriceLabel } from "@/lib/events/price";
 import { registerForEvent } from "./actions";
 
 interface Props {
@@ -99,6 +100,18 @@ export default async function EventPage({ params }: Props) {
   ]);
   const { labels: L, form: formLabels } = template.data;
 
+  // An old address forwards to the event's current one.
+  if (!event) {
+    const moved = await prisma.eventSlugRedirect
+      .findUnique({
+        where: { slug },
+        select: { event: { select: { slug: true, status: true } } },
+      })
+      .catch(() => null);
+    if (moved && moved.event.status !== "DRAFT")
+      permanentRedirect(`/events/${moved.event.slug}`);
+  }
+
   // Sample events (development only) get the same page with a preview form.
   if (!event) {
     const sample = await findSample(slug);
@@ -112,6 +125,7 @@ export default async function EventPage({ params }: Props) {
         location={sample.location}
         format={sample.format}
         image={sample.image ?? stock(STOCK.eventStage, 2000, 1200)}
+        price={sample.price}
         ended={start.getTime() <= Date.now()}
         spacesLabel={L.openToAll}
         calendarHref={googleCalendarHref(
@@ -163,6 +177,11 @@ export default async function EventPage({ params }: Props) {
       location={event.location}
       format={formatFor(event.location)}
       image={image}
+      price={eventPriceLabel(event.isPaid, event.priceNGN)}
+      priceNote={event.priceNote ?? undefined}
+      paymentLink={
+        event.isPaid && event.paymentLink ? event.paymentLink : undefined
+      }
       ended={event.dateTime.getTime() <= Date.now()}
       labels={L}
       spacesLabel={
@@ -196,6 +215,14 @@ export default async function EventPage({ params }: Props) {
             closed={isClosed}
             submitAction={boundRegister}
             labels={formLabels}
+            payment={
+              event.isPaid && event.paymentLink
+                ? {
+                    price: eventPriceLabel(event.isPaid, event.priceNGN),
+                    link: event.paymentLink,
+                  }
+                : undefined
+            }
           />
         </RecaptchaProvider>
       }

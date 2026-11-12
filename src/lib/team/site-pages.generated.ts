@@ -11,7 +11,8 @@ export const DETECTED_SITE_PAGES = [
   "catalogue", // src/app/(public)/catalogue
   "contact", // src/app/(public)/contact
   "design-system", // src/app/(public)/design-system
-  "devs-day", // src/app/(public)/devs-day
+  "dev-day", // next.config.ts (redirect)
+  "devs-day", // next.config.ts (redirect)
   "dexta-academy-1", // public/dexta-academy-1
   "dexta-academy-2", // public/dexta-academy-2
   "dexta-academy-3", // public/dexta-academy-3

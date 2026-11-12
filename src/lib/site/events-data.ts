@@ -1,4 +1,5 @@
 import "server-only";
+import { eventPriceLabel } from "@/lib/events/price";
 import { unstable_cache } from "next/cache";
 import prisma from "@/lib/prisma";
 import { imageUrl } from "./media";
@@ -26,6 +27,8 @@ export type EventSummary = {
   location: string;
   format: EventFormat;
   closed: boolean;
+  /** "Free" or e.g. "₦25,000". */
+  price: string;
   /** Development-only sample (preview page, nothing is sent). */
   sample?: boolean;
 };
@@ -40,7 +43,12 @@ export function formatFor(location: string): EventFormat {
 function samples(): EventSummary[] {
   const day = 86_400_000;
   const now = Date.now();
-  const base = { timezone: "Africa/Lagos", closed: false, sample: true };
+  const base = {
+    timezone: "Africa/Lagos",
+    closed: false,
+    sample: true,
+    price: "Free",
+  };
   return [
     {
       ...base,
@@ -97,6 +105,8 @@ async function readEvents(): Promise<EventSummary[]> {
         location: true,
         imagePublicId: true,
         status: true,
+        isPaid: true,
+        priceNGN: true,
       },
     });
     events = rows.map((e) => ({
@@ -110,6 +120,7 @@ async function readEvents(): Promise<EventSummary[]> {
       location: e.location,
       format: formatFor(e.location),
       closed: e.status === "CLOSED",
+      price: eventPriceLabel(e.isPaid, e.priceNGN),
     }));
   } catch {
     events = [];

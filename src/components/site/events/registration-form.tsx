@@ -32,12 +32,15 @@ export function RegistrationForm({
   submitAction,
   labels: L = REGISTRATION_FORM_LABELS,
   preview = false,
+  payment,
 }: {
   fields: FormFieldDef[];
   closed?: boolean;
   submitAction?: Submit;
   labels?: RegistrationFormLabels;
   preview?: boolean;
+  /** Paid events: after registering, people pay with this link. */
+  payment?: { price: string; link: string };
 }) {
   const uid = useId();
   // Undefined when reCAPTCHA isn't set up (no provider): the form still works.
@@ -108,6 +111,16 @@ export function RegistrationForm({
         <CheckCircle2 aria-hidden className="size-10" />
         <p className="text-h3">{L.successTitle}</p>
         <p className="text-surface-muted text-sm leading-relaxed">{message}</p>
+        {payment && (
+          <div className="mt-2 flex flex-col items-center gap-3">
+            <p className="text-sm font-bold">
+              One more step: pay {payment.price} to secure your seat.
+            </p>
+            <Button href={payment.link} external arrow>
+              Pay {payment.price}
+            </Button>
+          </div>
+        )}
       </div>
     );
 

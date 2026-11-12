@@ -368,16 +368,44 @@ model Event {
   imagePublicId String? // Cloudinary public ID
   attendeeLimit Int? // null = unlimited
   status        EventStatus @default(DRAFT)
+  /// Paid events show their price and a "Pay" button with the payment link.
+  isPaid        Boolean     @default(false)
+  priceNGN      Int?
+  priceNote     String? // e.g. "Early bird until 1 March"
+  paymentLink   String? // Paystack, Flutterwave… page
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
   formFields    EventFormField[]
   registrations EventRegistration[]
+  slugRedirects EventSlugRedirect[]
 
   @@index([slug])
   @@index([status])
   @@index([dateTime])
   @@index([createdAt])
+}
+
+/// An event's earlier page address: /events/<slug> forwards to its current one.
+model EventSlugRedirect {
+  slug      String   @id
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+}
+
+/// Visitor analytics as daily totals (no raw views, no personal data). One
+/// row per day + kind + key, e.g. (2026-11-12, "page", "/offers") = 42.
+model AnalyticsCount {
+  day   DateTime @db.Date
+  kind  String // views | visitors | visits | page | referrer | device | country
+  key   String   @default("")
+  count Int      @default(0)
+
+  @@id([day, kind, key])
+  @@index([kind, day])
 }
 
 model EventFormField {
